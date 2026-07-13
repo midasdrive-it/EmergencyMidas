@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatEuro } from "@/lib/money";
-import type { Forfait, ItemType, Tire } from "@/lib/types";
+import type { Forfait, ItemType, Part, Tire } from "@/lib/types";
 
 type CatalogItem = { code: string; label: string; unit: number };
 
@@ -58,11 +58,6 @@ export default function NewQuoteModal({
 
   // Ricerca nel listino della scheda attiva, con debounce.
   useEffect(() => {
-    if (activeTab === "ricambio") {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
     const raw = search.replace(/[,()*%:]/g, " ").trim();
     if (raw.length < 2) {
       setResults([]);
@@ -103,6 +98,21 @@ export default function NewQuoteModal({
           code: t.reference,
           label: t.libelle ?? "",
           unit: Number(t.prix_vente ?? 0),
+        }));
+      } else if (activeTab === "ricambio") {
+        let qb = supabase
+          .from("util_prix_sale_parts")
+          .select("reference, description, pv")
+          .not("pv", "is", null)
+          .gt("pv", 0);
+        for (const token of raw.split(/\s+/).filter(Boolean)) {
+          qb = qb.ilike("description", `%${token}%`);
+        }
+        const { data } = await qb.limit(20);
+        items = ((data as Part[]) ?? []).map((p) => ({
+          code: p.reference,
+          label: p.description ?? "",
+          unit: Number(p.pv ?? 0),
         }));
       }
 
@@ -369,57 +379,51 @@ export default function NewQuoteModal({
               </div>
 
               <div className="p-3">
-                {activeTab === "ricambio" ? (
-                  <p className="px-1 py-8 text-center text-sm text-muted">
-                    Ricerca ricambi in arrivo.
-                  </p>
-                ) : (
-                  <>
-                    <input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder={
-                        activeTab === "forfait"
-                          ? "Cerca codice o descrizione…"
-                          : "Cerca marca o misura, es. “michelin 205 55 16”"
-                      }
-                      className={inputClass}
-                      autoComplete="off"
-                    />
-                    <div className="mt-2 max-h-[38vh] overflow-y-auto">
-                      {searching && (
-                        <p className="px-1 py-2 text-sm text-muted">Ricerca…</p>
-                      )}
-                      {!searching &&
-                        results.map((item) => (
-                          <button
-                            key={item.code}
-                            onClick={() => addItem(item, activeTab)}
-                            className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm transition hover:bg-brand-tint"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-ink" title={item.label}>
-                                {item.label}
-                              </p>
-                              <p className="font-mono text-[11px] text-muted">
-                                {item.code}
-                              </p>
-                            </div>
-                            <span className="shrink-0 font-medium text-ink">
-                              {formatEuro(item.unit)}
-                            </span>
-                          </button>
-                        ))}
-                      {!searching &&
-                        search.trim().length >= 2 &&
-                        results.length === 0 && (
-                          <p className="px-1 py-2 text-sm text-muted">
-                            Nessun risultato.
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={
+                    activeTab === "forfait"
+                      ? "Cerca codice o descrizione…"
+                      : activeTab === "pneumatico"
+                      ? "Cerca marca o misura, es. “michelin 205 55 16”"
+                      : "Cerca ricambio per descrizione…"
+                  }
+                  className={inputClass}
+                  autoComplete="off"
+                />
+                <div className="mt-2 max-h-[38vh] overflow-y-auto">
+                  {searching && (
+                    <p className="px-1 py-2 text-sm text-muted">Ricerca…</p>
+                  )}
+                  {!searching &&
+                    results.map((item) => (
+                      <button
+                        key={item.code}
+                        onClick={() => addItem(item, activeTab)}
+                        className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm transition hover:bg-brand-tint"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-ink" title={item.label}>
+                            {item.label}
                           </p>
-                        )}
-                    </div>
-                  </>
-                )}
+                          <p className="font-mono text-[11px] text-muted">
+                            {item.code}
+                          </p>
+                        </div>
+                        <span className="shrink-0 font-medium text-ink">
+                          {formatEuro(item.unit)}
+                        </span>
+                      </button>
+                    ))}
+                  {!searching &&
+                    search.trim().length >= 2 &&
+                    results.length === 0 && (
+                      <p className="px-1 py-2 text-sm text-muted">
+                        Nessun risultato.
+                      </p>
+                    )}
+                </div>
               </div>
             </div>
           </div>

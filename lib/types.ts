@@ -38,6 +38,12 @@ export type Tire = {
   prix_vente: string | null;
 };
 
+export type Part = {
+  reference: string;
+  description: string | null;
+  pv: number | null;
+};
+
 export type QuoteRow = {
   quote_id: string;
   shop_id: string;

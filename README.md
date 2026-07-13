@@ -93,13 +93,13 @@ articoli di tre tipi (colonna `item_type`):
 
 - **forfait** — listino `util_forfait_fixed` (`price`);
 - **pneumatico** — listino `util_prix_sale_tires` (`prix_vente`, testo);
-- **ricambio** — `util_prix_sale_parts` (previsto, non ancora implementato).
+- **ricambio** — listino `util_prix_sale_parts` (`pv`, double precision).
 
 - La UI (`/dashboard/preventivi`) mostra i preventivi e un modale "Nuovo
   preventivo" con: targa veicolo e una sezione catalogo a destra con tre
-  schede (Forfait / Ricambi / Pneumatici). La ricerca pneumatici filtra per
-  token sulla descrizione (es. "michelin 205 55 16"), su listino da ~48k
-  righe (indice trigram su `libelle`).
+  schede (Forfait / Ricambi / Pneumatici). Le ricerche pneumatici e ricambi
+  filtrano per token sulla descrizione (es. "michelin 205 55 16"), su listini
+  da ~48k e ~170k righe (indici trigram su `libelle` / `description`).
 - **Annidamento**: pneumatici/ricambi possono essere annidati in un forfait
   (colonna `parent_forfait`). Gli articoli annidati mostrano il proprio
   prezzo **barrato** e non contano nel totale (fa fede il prezzo del

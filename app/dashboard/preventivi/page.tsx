@@ -90,6 +90,23 @@ export default async function PreventiviPage({
     }
   }
 
+  const partCodes = Array.from(
+    new Set(
+      quoteRows
+        .filter((r) => r.item_type === "ricambio")
+        .map((r) => r.forfait_code)
+    )
+  );
+  if (partCodes.length > 0) {
+    const { data: parts } = await supabase
+      .from("util_prix_sale_parts")
+      .select("reference, description")
+      .in("reference", partCodes);
+    for (const p of parts ?? []) {
+      labelMap[`ricambio:${p.reference}`] = p.description ?? "";
+    }
+  }
+
   // Un utente officina crea sempre per sé (shop_id lato server); un admin
   // crea per l'officina selezionata.
   const canCreate = Boolean(myShopId) || (Boolean(isAdmin) && Boolean(activeShopId));
