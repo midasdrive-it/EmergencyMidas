@@ -2,12 +2,14 @@
 
 Strumento di backup per le officine Midas Italia in caso di outage del
 gestionale del punto vendita. Login con Google oppure email/password
-(Supabase Auth), consultazione del calendario appuntamenti dell'officina
-collegata all'utente.
+(Supabase Auth), consultazione del calendario appuntamenti e creazione
+preventivi dell'officina collegata all'utente.
 
-Backend: Supabase (progetto **MidasStore**, condiviso con altre app — non
-sono state fatte modifiche allo schema oltre a una singola policy RLS di
-sola lettura su `util_shop_appointments`).
+Backend: Supabase (progetto **MidasStore**, condiviso con altre app). Le
+modifiche allo schema introdotte da questa app sono limitate e additive:
+- una policy RLS di sola lettura su `util_shop_appointments`;
+- la tabella `util_shop_quotes` (preventivi) con relativa RLS e la funzione
+  `create_quote` per la creazione (vedi "Modulo Preventivi").
 
 ## Stack
 
@@ -84,6 +86,26 @@ può impostarsi una password col flusso qui sopra.
 - Gli utenti admin (email in `admin_emails`) vedono un selettore per
   scegliere quale officina consultare.
 
+## Modulo Preventivi
+
+Permette all'officina di costruire un preventivo linea per linea a partire
+dal listino forfait fisso (`util_forfait_fixed`).
+
+- La UI (`/dashboard/preventivi`) mostra i preventivi dell'officina e un
+  modale "Nuovo preventivo" con: targa veicolo, ricerca forfait per codice
+  o descrizione, aggiunta di più linee (quantità modificabile) e totale.
+- Il salvataggio passa dalla funzione `create_quote(p_vehicle_plate, p_lines)`
+  (`SECURITY DEFINER`): genera `shop_id` da `get_customer_id()` e
+  `quote_id` nel formato `<shop_id>-DDMMYY-HHMMSS` (timezone Europe/Rome),
+  e legge il prezzo unitario **dal listino** (non dal client). Le linee
+  finiscono in `util_shop_quotes` (una riga per forfait, PK composta
+  `quote_id + forfait_code`).
+- Lettura protetta da RLS come per gli appuntamenti:
+  `(shop_id = get_customer_id()) OR is_admin()`. L'inserimento avviene solo
+  tramite la RPC (nessuna INSERT diretta). La creazione richiede
+  un'officina collegata; gli admin senza officina vedono i preventivi in
+  sola lettura.
+
 ## Struttura
 
 ```
@@ -92,18 +114,23 @@ app/
   auth/callback/       scambio codice OAuth/recovery → sessione
   auth/update-password/ impostazione password dopo il link via email
   dashboard/
-    layout.tsx          header + tab (Calendario attivo, altri "presto")
+    layout.tsx          header giallo + sidebar moduli
     calendario/         consultazione appuntamenti settimana per settimana
+    preventivi/         lista preventivi + modale creazione linea per linea
   access-denied/        utente autenticato ma senza officina collegata
+components/
+  Sidebar.tsx            navigazione moduli a sinistra
 lib/
   supabase/              client browser/server + refresh sessione (middleware)
   dates.ts               utility date/settimane in timezone Europe/Rome
+  money.ts               formattazione valuta (EUR/it-IT)
   types.ts               tipi condivisi
 ```
 
 ## Prossimi passi previsti
 
-- Tab "Preventivi" (creazione preventivi)
-- Tab "Distinte lavori" (distinte lavori eseguiti)
+- Modulo "Distinte lavori" (distinte lavori eseguiti)
+- Preventivi: stampa/PDF, stato (bozza/inviato), forfait a tempo
+  (`util_forfait_timescale`) e ricambi oltre al forfait fisso
 - Eventuale scrittura/modifica appuntamenti (oggi la consultazione è in
   sola lettura)

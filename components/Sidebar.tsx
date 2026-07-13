@@ -74,7 +74,7 @@ const MODULES = [
     href: "/dashboard/preventivi",
     label: "Preventivi",
     icon: QuoteIcon,
-    enabled: false,
+    enabled: true,
   },
   {
     href: "/dashboard/distinte-lavori",
