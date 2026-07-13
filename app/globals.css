@@ -1,0 +1,60 @@
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Barlow Condensed", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+html {
+  background-color: #f6f3ec;
+}
+
+body {
+  color: #1b1913;
+  font-family: var(--font-body);
+}
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid #c43e1c;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Italian-plate-inspired badge for targhe */
+.plate-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1.5px solid #1b1913;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+.plate-badge__cap {
+  background: #1b3a8f;
+  color: #fff;
+  font-size: 9px;
+  padding: 4px 3px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+.plate-badge__num {
+  background: #fff;
+  padding: 4px 7px;
+  font-size: 13px;
+}
