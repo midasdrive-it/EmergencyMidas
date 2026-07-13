@@ -100,15 +100,20 @@ export default function NewQuoteModal({
           unit: Number(t.prix_vente ?? 0),
         }));
       } else if (activeTab === "ricambio") {
-        let qb = supabase
+        // Match sul codice (reference) OPPURE tutti i token nella descrizione.
+        const tokens = raw.split(/\s+/).filter(Boolean);
+        const codeQ = raw.replace(/\s+/g, "");
+        const descCond =
+          tokens.length > 1
+            ? `and(${tokens.map((t) => `description.ilike.*${t}*`).join(",")})`
+            : `description.ilike.*${tokens[0]}*`;
+        const { data } = await supabase
           .from("util_prix_sale_parts")
           .select("reference, description, pv")
           .not("pv", "is", null)
-          .gt("pv", 0);
-        for (const token of raw.split(/\s+/).filter(Boolean)) {
-          qb = qb.ilike("description", `%${token}%`);
-        }
-        const { data } = await qb.limit(20);
+          .gt("pv", 0)
+          .or(`reference.ilike.*${codeQ}*,${descCond}`)
+          .limit(20);
         items = ((data as Part[]) ?? []).map((p) => ({
           code: p.reference,
           label: p.description ?? "",
