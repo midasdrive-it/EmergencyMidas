@@ -6,7 +6,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen flex-col items-center justify-center px-6 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mb-4 inline-flex h-1.5 w-14 items-center justify-center rounded-full bg-rust" />
+          <div className="mb-4 inline-flex h-1.5 w-14 items-center justify-center rounded-full bg-brand" />
           <h1 className="font-display text-5xl font-bold uppercase tracking-tight text-ink">
             Midas
           </h1>

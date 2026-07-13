@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 type Mode = "signin" | "reset";
 
 const inputClass =
-  "w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-rust";
+  "w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-brand-dark";
 
 export default function EmailPasswordForm() {
   const router = useRouter();
@@ -89,7 +89,7 @@ export default function EmailPasswordForm() {
         <button
           type="submit"
           disabled={loading}
-          className="mt-1 w-full rounded-md bg-ink px-6 py-3 font-body text-sm font-semibold text-paper transition hover:bg-rust disabled:opacity-60"
+          className="mt-1 w-full rounded-md bg-ink px-6 py-3 font-body text-sm font-semibold text-paper transition hover:bg-brand hover:text-ink disabled:opacity-60"
         >
           {loading ? "Invio in corso…" : "Invia link per la password"}
         </button>
@@ -98,7 +98,7 @@ export default function EmailPasswordForm() {
         <button
           type="button"
           onClick={() => switchMode("signin")}
-          className="mt-1 text-center text-sm font-medium text-ink underline underline-offset-2 hover:text-rust"
+          className="mt-1 text-center text-sm font-medium text-ink underline underline-offset-2 hover:text-brand-dark"
         >
           Torna all&apos;accesso
         </button>
@@ -141,7 +141,7 @@ export default function EmailPasswordForm() {
       <button
         type="submit"
         disabled={loading}
-        className="mt-1 w-full rounded-md bg-ink px-6 py-3 font-body text-sm font-semibold text-paper transition hover:bg-rust disabled:opacity-60"
+        className="mt-1 w-full rounded-md bg-ink px-6 py-3 font-body text-sm font-semibold text-paper transition hover:bg-brand hover:text-ink disabled:opacity-60"
       >
         {loading ? "Accesso in corso…" : "Accedi"}
       </button>
@@ -149,7 +149,7 @@ export default function EmailPasswordForm() {
       <button
         type="button"
         onClick={() => switchMode("reset")}
-        className="text-center text-sm font-medium text-ink underline underline-offset-2 hover:text-rust"
+        className="text-center text-sm font-medium text-ink underline underline-offset-2 hover:text-brand-dark"
       >
         Password dimenticata? Impostala qui
       </button>

@@ -28,7 +28,7 @@ export default function LoginButton() {
       <button
         onClick={handleLogin}
         disabled={loading}
-        className="flex w-full items-center justify-center gap-3 rounded-md bg-ink px-6 py-3 font-body text-sm font-semibold text-paper transition hover:bg-rust disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-3 rounded-md bg-ink px-6 py-3 font-body text-sm font-semibold text-paper transition hover:bg-brand hover:text-ink disabled:opacity-60"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
           <path

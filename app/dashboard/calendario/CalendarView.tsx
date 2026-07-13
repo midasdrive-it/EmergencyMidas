@@ -114,7 +114,7 @@ export default function CalendarView({
             <select
               value={activeShopId ?? ""}
               onChange={(e) => pushParams({ shop: e.target.value })}
-              className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-sm text-ink focus:border-rust"
+              className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-sm text-ink focus:border-brand-dark"
             >
               {shops.map((s) => (
                 <option key={s.User_ID} value={s.User_ID}>
@@ -131,19 +131,19 @@ export default function CalendarView({
         <div className="flex items-center gap-2">
           <button
             onClick={() => pushParams({ week: shiftWeek(mondayIso, -1) })}
-            className="rounded-md border border-line px-3 py-1.5 text-sm font-medium text-ink transition hover:border-rust hover:text-rust"
+            className="rounded-md border border-line px-3 py-1.5 text-sm font-medium text-ink transition hover:border-brand-dark hover:bg-brand-tint"
           >
             ← Sett. prec.
           </button>
           <button
             onClick={() => pushParams({ week: todayIsoDate() })}
-            className="rounded-md bg-ink px-3 py-1.5 text-sm font-medium text-paper transition hover:bg-rust"
+            className="rounded-md bg-ink px-3 py-1.5 text-sm font-medium text-paper transition hover:bg-brand hover:text-ink"
           >
             Oggi
           </button>
           <button
             onClick={() => pushParams({ week: shiftWeek(mondayIso, 1) })}
-            className="rounded-md border border-line px-3 py-1.5 text-sm font-medium text-ink transition hover:border-rust hover:text-rust"
+            className="rounded-md border border-line px-3 py-1.5 text-sm font-medium text-ink transition hover:border-brand-dark hover:bg-brand-tint"
           >
             Sett. succ. →
           </button>
@@ -160,7 +160,7 @@ export default function CalendarView({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Cerca targa o cliente in questa settimana…"
-          className="w-full rounded-md border border-line bg-surface px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-rust sm:w-72"
+          className="w-full rounded-md border border-line bg-surface px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-brand-dark sm:w-72"
         />
       </div>
 
@@ -173,12 +173,12 @@ export default function CalendarView({
             <div
               key={day}
               className={`overflow-hidden rounded-lg border ${
-                isToday ? "border-rust" : "border-line"
+                isToday ? "border-brand-dark" : "border-line"
               } bg-surface`}
             >
               <div
                 className={`flex items-center justify-between px-4 py-2.5 ${
-                  isToday ? "bg-rust text-paper" : "bg-paper text-ink"
+                  isToday ? "bg-brand text-ink" : "bg-paper text-ink"
                 }`}
               >
                 <p className="font-display text-base font-semibold uppercase tracking-wide">
@@ -249,7 +249,7 @@ export default function CalendarView({
                         {phone && (
                           <a
                             href={`tel:${phone.replace(/\s/g, "")}`}
-                            className="shrink-0 font-mono text-xs text-muted hover:text-rust"
+                            className="shrink-0 font-mono text-xs text-muted hover:text-ink"
                           >
                             {phone}
                           </a>

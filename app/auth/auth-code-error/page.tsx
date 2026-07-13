@@ -12,7 +12,7 @@ export default function AuthCodeErrorPage() {
       </p>
       <Link
         href="/login"
-        className="mt-6 rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-rust"
+        className="mt-6 rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-brand hover:text-ink"
       >
         Torna al login
       </Link>

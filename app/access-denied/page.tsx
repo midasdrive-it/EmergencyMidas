@@ -22,7 +22,7 @@ export default async function AccessDeniedPage() {
         collegare la tua officina a questo strumento.
       </p>
       <div className="mt-6">
-        <SignOutButton className="rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-rust" />
+        <SignOutButton className="rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-brand hover:text-ink" />
       </div>
     </main>
   );

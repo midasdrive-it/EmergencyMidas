@@ -26,7 +26,7 @@ export default function SignOutButton({
       disabled={loading}
       className={
         className ??
-        "rounded-md border border-line px-3 py-1.5 text-sm font-medium text-ink transition hover:border-rust hover:text-rust disabled:opacity-60"
+        "rounded-md border border-line px-3 py-1.5 text-sm font-medium text-ink transition hover:border-brand-dark hover:text-ink disabled:opacity-60"
       }
     >
       {loading ? "Uscita…" : "Esci"}

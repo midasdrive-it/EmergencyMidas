@@ -12,6 +12,11 @@ const config: Config = {
         paper: "#F6F3EC",
         surface: "#FFFFFF",
         line: "#E2DCCB",
+        brand: {
+          DEFAULT: "#FFCD00",
+          dark: "#E6B400",
+          tint: "#FFF6D1",
+        },
         rust: {
           DEFAULT: "#C43E1C",
           dark: "#9E3115",
