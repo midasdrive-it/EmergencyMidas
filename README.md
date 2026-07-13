@@ -102,9 +102,11 @@ dal listino forfait fisso (`util_forfait_fixed`).
   `quote_id + forfait_code`).
 - Lettura protetta da RLS come per gli appuntamenti:
   `(shop_id = get_customer_id()) OR is_admin()`. L'inserimento avviene solo
-  tramite la RPC (nessuna INSERT diretta). La creazione richiede
-  un'officina collegata; gli admin senza officina vedono i preventivi in
-  sola lettura.
+  tramite la RPC (nessuna INSERT diretta).
+- Gli utenti officina creano sempre per la propria officina. Gli admin
+  scelgono l'officina da un selettore e possono creare per quella (la RPC
+  accetta `p_shop_id` solo se `is_admin()`; per gli altri è ignorato, così
+  non è possibile falsificare lo `shop_id`).
 
 ## Struttura
 

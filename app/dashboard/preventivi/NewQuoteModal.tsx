@@ -16,9 +16,11 @@ const inputClass =
   "w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-brand-dark";
 
 export default function NewQuoteModal({
+  shopId,
   onClose,
   onCreated,
 }: {
+  shopId: string | null;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -120,6 +122,7 @@ export default function NewQuoteModal({
         forfait_code: l.code,
         quantity: l.quantity,
       })),
+      p_shop_id: shopId,
     });
     if (error) {
       setSaving(false);

@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { QuoteRow } from "@/lib/types";
+import { useRouter, useSearchParams } from "next/navigation";
+import type { QuoteRow, ShopOption } from "@/lib/types";
 import { formatEuro } from "@/lib/money";
 import NewQuoteModal from "./NewQuoteModal";
 
@@ -52,20 +52,35 @@ function formatDateTime(iso: string): string {
 }
 
 export default function QuotesView({
-  canCreate,
   isAdmin,
+  shops,
+  activeShopId,
+  canCreate,
+  createShopId,
   rows,
   labelMap,
 }: {
-  canCreate: boolean;
   isAdmin: boolean;
+  shops: ShopOption[];
+  activeShopId: string | null;
+  canCreate: boolean;
+  createShopId: string | null;
   rows: QuoteRow[];
   labelMap: Record<string, string>;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [modalOpen, setModalOpen] = useState(false);
 
   const groups = useMemo(() => groupQuotes(rows), [rows]);
+  const showAdminSelector = isAdmin && shops.length > 0;
+
+  function selectShop(id: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (id) params.set("shop", id);
+    else params.delete("shop");
+    router.push(`/dashboard/preventivi?${params.toString()}`);
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -75,29 +90,51 @@ export default function QuotesView({
             Preventivi
           </p>
           <p className="text-sm text-muted">
-            {isAdmin && !canCreate
-              ? "Vista amministratore — preventivi recenti (sola lettura)."
-              : "Crea e consulta i preventivi della tua officina."}
+            Crea e consulta i preventivi dell&apos;officina.
           </p>
         </div>
 
-        {canCreate && (
-          <button
-            onClick={() => setModalOpen(true)}
-            className="self-start rounded-md bg-ink px-4 py-2 text-sm font-semibold text-paper transition hover:bg-brand hover:text-ink sm:self-auto"
-          >
-            + Nuovo preventivo
-          </button>
-        )}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {showAdminSelector && (
+            <label className="flex items-center gap-2 text-sm">
+              <span className="text-muted">Officina:</span>
+              <select
+                value={activeShopId ?? ""}
+                onChange={(e) => selectShop(e.target.value)}
+                className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-sm text-ink focus:border-brand-dark"
+              >
+                <option value="">— seleziona —</option>
+                {shops.map((s) => (
+                  <option key={s.User_ID} value={s.User_ID}>
+                    {s.User_Name ?? s.User_ID} {s.Town ? `— ${s.Town}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {canCreate && (
+            <button
+              onClick={() => setModalOpen(true)}
+              className="self-start rounded-md bg-ink px-4 py-2 text-sm font-semibold text-paper transition hover:bg-brand hover:text-ink sm:self-auto"
+            >
+              + Nuovo preventivo
+            </button>
+          )}
+        </div>
       </div>
 
-      {groups.length === 0 ? (
+      {isAdmin && !activeShopId ? (
+        <div className="rounded-lg border border-dashed border-line bg-surface px-6 py-12 text-center">
+          <p className="text-sm text-muted">
+            Seleziona un&apos;officina per consultare e creare i preventivi.
+          </p>
+        </div>
+      ) : groups.length === 0 ? (
         <div className="rounded-lg border border-dashed border-line bg-surface px-6 py-12 text-center">
           <p className="text-sm text-muted">
             Nessun preventivo ancora.
-            {canCreate
-              ? " Crea il primo con “Nuovo preventivo”."
-              : ""}
+            {canCreate ? " Crea il primo con “Nuovo preventivo”." : ""}
           </p>
         </div>
       ) : (
@@ -158,6 +195,7 @@ export default function QuotesView({
 
       {modalOpen && (
         <NewQuoteModal
+          shopId={createShopId}
           onClose={() => setModalOpen(false)}
           onCreated={() => {
             setModalOpen(false);

@@ -1,11 +1,15 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { QuoteRow } from "@/lib/types";
+import type { QuoteRow, ShopOption } from "@/lib/types";
 import QuotesView from "./QuotesView";
 
 export const dynamic = "force-dynamic";
 
-export default async function PreventiviPage() {
+export default async function PreventiviPage({
+  searchParams,
+}: {
+  searchParams: { shop?: string };
+}) {
   const supabase = await createClient();
 
   const {
@@ -22,23 +26,33 @@ export default async function PreventiviPage() {
     redirect("/access-denied");
   }
 
-  let query = supabase
-    .from("util_shop_quotes")
-    .select(
-      "quote_id, shop_id, vehicle_plate, forfait_code, quantity, unit_price, line_price, created_at"
-    )
-    .order("created_at", { ascending: false });
-
-  // Gli utenti officina vedono i propri preventivi; un admin senza officina
-  // collegata vede i più recenti (in sola lettura), scoperti dalla RLS.
-  if (myShopId) {
-    query = query.eq("shop_id", myShopId);
-  } else {
-    query = query.limit(500);
+  // Selettore officina per gli admin senza officina propria.
+  let shops: ShopOption[] = [];
+  if (isAdmin && !myShopId) {
+    const { data } = await supabase
+      .from("customers")
+      .select("User_ID, User_Name, Town")
+      .order("User_Name", { ascending: true });
+    shops = data ?? [];
   }
 
-  const { data: rows } = await query;
-  const quoteRows = (rows ?? []) as QuoteRow[];
+  // Officina attiva: la propria per gli utenti officina, quella selezionata
+  // per gli admin.
+  const activeShopId: string | null =
+    (myShopId as string | null) ||
+    (isAdmin ? searchParams.shop ?? null : null);
+
+  let quoteRows: QuoteRow[] = [];
+  if (activeShopId) {
+    const { data: rows } = await supabase
+      .from("util_shop_quotes")
+      .select(
+        "quote_id, shop_id, vehicle_plate, forfait_code, quantity, unit_price, line_price, created_at"
+      )
+      .eq("shop_id", activeShopId)
+      .order("created_at", { ascending: false });
+    quoteRows = (rows ?? []) as QuoteRow[];
+  }
 
   // Etichette dei forfait per la visualizzazione delle linee.
   const codes = Array.from(new Set(quoteRows.map((r) => r.forfait_code)));
@@ -53,10 +67,18 @@ export default async function PreventiviPage() {
     }
   }
 
+  // Un utente officina crea sempre per sé (shop_id lato server); un admin
+  // crea per l'officina selezionata.
+  const canCreate = Boolean(myShopId) || (Boolean(isAdmin) && Boolean(activeShopId));
+  const createShopId = myShopId ? null : activeShopId;
+
   return (
     <QuotesView
-      canCreate={Boolean(myShopId)}
       isAdmin={Boolean(isAdmin)}
+      shops={shops}
+      activeShopId={activeShopId}
+      canCreate={canCreate}
+      createShopId={createShopId}
       rows={quoteRows}
       labelMap={labelMap}
     />
