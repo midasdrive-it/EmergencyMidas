@@ -119,6 +119,11 @@ articoli di tre tipi (colonna `item_type`):
   scelgono l'officina da un selettore e possono creare per quella (la RPC
   accetta `p_shop_id` solo se `is_admin()`; per gli altri è ignorato, così
   non è possibile falsificare lo `shop_id`).
+- **Stampa/PDF**: ogni preventivo ha un link "Stampa PDF" verso una pagina
+  dedicata (`/preventivi/<quote_id>/stampa`, fuori dal layout dashboard) con
+  intestazione dati officina, righe (annidamento incluso) e totali
+  imponibile / IVA (22% approssimato) / totale. Usa la stampa del browser
+  ("Salva come PDF"), senza dipendenze aggiuntive.
 
 ## Struttura
 
@@ -144,7 +149,7 @@ lib/
 ## Prossimi passi previsti
 
 - Modulo "Distinte lavori" (distinte lavori eseguiti)
-- Preventivi: stampa/PDF, stato (bozza/inviato), forfait a tempo
+- Preventivi: stato (bozza/inviato), forfait a tempo
   (`util_forfait_timescale`) e ricambi oltre al forfait fisso
 - Eventuale scrittura/modifica appuntamenti (oggi la consultazione è in
   sola lettura)

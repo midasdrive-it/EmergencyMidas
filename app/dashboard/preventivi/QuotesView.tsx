@@ -200,9 +200,19 @@ export default function QuotesView({
                       {g.quoteId}
                     </span>
                   </div>
-                  <span className="text-xs text-muted">
-                    {formatDateTime(g.createdAt)}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted">
+                      {formatDateTime(g.createdAt)}
+                    </span>
+                    <a
+                      href={`/preventivi/${encodeURIComponent(g.quoteId)}/stampa`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-md border border-line px-2.5 py-1 text-xs font-medium text-ink transition hover:border-brand-dark hover:bg-brand-tint"
+                    >
+                      Stampa PDF
+                    </a>
+                  </div>
                 </div>
 
                 <div className="divide-y divide-line">

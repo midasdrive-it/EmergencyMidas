@@ -33,6 +33,23 @@ body {
   }
 }
 
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    margin: 15mm;
+  }
+  html {
+    background: #fff;
+  }
+  /* Preserva i colori d'accento nel PDF */
+  .print-exact {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 /* Italian-plate-inspired badge for targhe */
 .plate-badge {
   display: inline-flex;
