@@ -97,10 +97,10 @@ articoli di tre tipi (colonna `item_type`):
 
 - La UI (`/dashboard/preventivi`) mostra i preventivi e un modale "Nuovo
   preventivo" con: targa veicolo e una sezione catalogo a destra con tre
-  schede (Forfait / Ricambi / Pneumatici). Pneumatici: ricerca per token
-  sulla descrizione (es. "michelin 205 55 16"). Ricambi: per token sulla
-  descrizione **oppure** per codice (`reference`). Listini da ~48k e ~170k
-  righe, indici trigram su `libelle`, `description` e `reference`.
+  schede (Forfait / Ricambi / Pneumatici). Pneumatici e ricambi: ricerca per
+  token sulla descrizione (es. "michelin 205 55 16") **oppure** per codice
+  (`reference`). Listini da ~48k e ~170k righe, con indici trigram su
+  descrizione (`libelle`/`description`) e su `reference`.
 - **Annidamento**: pneumatici/ricambi possono essere annidati in un forfait
   (colonna `parent_forfait`). Gli articoli annidati mostrano il proprio
   prezzo **barrato** e non contano nel totale (fa fede il prezzo del

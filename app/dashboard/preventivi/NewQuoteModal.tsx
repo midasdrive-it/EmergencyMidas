@@ -84,16 +84,21 @@ export default function NewQuoteModal({
           unit: Number(f.price ?? 0),
         }));
       } else if (activeTab === "pneumatico") {
-        let qb = supabase
+        // Match sul codice (reference) OPPURE tutti i token nella descrizione.
+        const tokens = raw.split(/\s+/).filter(Boolean);
+        const codeQ = raw.replace(/\s+/g, "");
+        const descCond =
+          tokens.length > 1
+            ? `and(${tokens.map((t) => `libelle.ilike.*${t}*`).join(",")})`
+            : `libelle.ilike.*${tokens[0]}*`;
+        const { data } = await supabase
           .from("util_prix_sale_tires")
           .select("reference, libelle, prix_vente")
           .not("prix_vente", "is", null)
           .neq("prix_vente", "")
-          .neq("prix_vente", "0");
-        for (const token of raw.split(/\s+/).filter(Boolean)) {
-          qb = qb.ilike("libelle", `%${token}%`);
-        }
-        const { data } = await qb.limit(20);
+          .neq("prix_vente", "0")
+          .or(`reference.ilike.*${codeQ}*,${descCond}`)
+          .limit(20);
         items = ((data as Tire[]) ?? []).map((t) => ({
           code: t.reference,
           label: t.libelle ?? "",
