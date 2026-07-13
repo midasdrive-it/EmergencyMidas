@@ -1,8 +1,9 @@
 # EmergencyMidas
 
 Strumento di backup per le officine Midas Italia in caso di outage del
-gestionale del punto vendita. Login con Google (Supabase Auth), consultazione
-del calendario appuntamenti dell'officina collegata all'utente.
+gestionale del punto vendita. Login con Google oppure email/password
+(Supabase Auth), consultazione del calendario appuntamenti dell'officina
+collegata all'utente.
 
 Backend: Supabase (progetto **MidasStore**, condiviso con altre app — non
 sono state fatte modifiche allo schema oltre a una singola policy RLS di
@@ -11,7 +12,7 @@ sola lettura su `util_shop_appointments`).
 ## Stack
 
 - Next.js 14 (App Router) + TypeScript + Tailwind CSS
-- Supabase Auth (Google OAuth) + Postgres/RLS
+- Supabase Auth (Google OAuth + email/password) + Postgres/RLS
 - Deploy: Vercel
 
 ## 1. Pubblicare su GitHub
@@ -52,6 +53,27 @@ Cloud Console, aggiungendo l'URL di callback Supabase
 (`https://ivxjhqmqzzyknlxunevx.supabase.co/auth/v1/callback`) tra gli
 Authorized redirect URIs del progetto Google.
 
+## 4. Abilitare l'accesso con email/password
+
+L'accesso con email e password richiede che il provider **Email** sia
+attivo nel progetto Supabase: Authentication → Providers → Email → attivo.
+È un'impostazione a livello di progetto: essendo il Supabase condiviso con
+altre app Midas, l'attivazione vale per tutte (non modifica né disattiva il
+login Google, che continua a funzionare).
+
+Poiché molti utenti esistono già con la sola identità Google (senza
+password), l'app non offre una registrazione self-service. Chi vuole usare
+email/password imposta la propria password dalla schermata di login →
+"Password dimenticata? Impostala qui": riceve un'email con un link che
+porta alla pagina `/auth/update-password`. Il flusso funziona anche per gli
+utenti nati da Google e richiede che l'URL del deploy sia tra i **Redirect
+URLs** di Supabase (già configurato al punto 3).
+
+L'onboarding di un nuovo punto vendita resta come prima: primo accesso via
+Google (il trigger `handle_new_auth_user` collega l'utente all'officina in
+base alla mail) oppure utente creato dall'amministratore; da lì l'utente
+può impostarsi una password col flusso qui sopra.
+
 ## Come funziona l'accesso
 
 - Al primo login, un trigger già presente sul database
@@ -66,8 +88,9 @@ Authorized redirect URIs del progetto Google.
 
 ```
 app/
-  login/              pagina di login Google
-  auth/callback/       scambio codice OAuth → sessione
+  login/              pagina di login (Google + email/password)
+  auth/callback/       scambio codice OAuth/recovery → sessione
+  auth/update-password/ impostazione password dopo il link via email
   dashboard/
     layout.tsx          header + tab (Calendario attivo, altri "presto")
     calendario/         consultazione appuntamenti settimana per settimana
