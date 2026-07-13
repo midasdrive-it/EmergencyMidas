@@ -31,7 +31,9 @@ function groupQuotes(rows: QuoteRow[]): QuoteGroup[] {
       map.set(row.quote_id, g);
     }
     g.lines.push(row);
-    g.total += Number(row.line_price);
+    // Solo le righe di primo livello contano nel totale: gli articoli
+    // annidati sono coperti dal prezzo del forfait.
+    if (!row.parent_forfait) g.total += Number(row.line_price);
   }
   return Array.from(map.values());
 }
@@ -49,6 +51,42 @@ function formatDateTime(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+function LineRow({
+  line,
+  label,
+  nested,
+}: {
+  line: QuoteRow;
+  label: string;
+  nested: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-3 px-4 py-2 text-sm ${
+        nested ? "bg-paper/40 pl-10" : ""
+      }`}
+    >
+      <span className="w-36 shrink-0 font-mono text-xs text-ink">
+        {nested ? "↳ " : ""}
+        {line.forfait_code}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-ink">{label || "—"}</span>
+      <span className="shrink-0 text-xs text-muted">
+        {Number(line.quantity)} × {formatEuro(line.unit_price)}
+      </span>
+      {nested ? (
+        <span className="w-24 shrink-0 text-right text-xs text-muted line-through">
+          {formatEuro(line.line_price)}
+        </span>
+      ) : (
+        <span className="w-24 shrink-0 text-right font-medium text-ink">
+          {formatEuro(line.line_price)}
+        </span>
+      )}
+    </div>
+  );
 }
 
 export default function QuotesView({
@@ -74,6 +112,10 @@ export default function QuotesView({
 
   const groups = useMemo(() => groupQuotes(rows), [rows]);
   const showAdminSelector = isAdmin && shops.length > 0;
+
+  function labelOf(line: QuoteRow): string {
+    return labelMap[`${line.item_type}:${line.forfait_code}`] ?? "";
+  }
 
   function selectShop(id: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -139,57 +181,58 @@ export default function QuotesView({
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {groups.map((g) => (
-            <div
-              key={g.quoteId}
-              className="overflow-hidden rounded-lg border border-line bg-surface"
-            >
-              <div className="flex flex-col justify-between gap-1 border-b border-line bg-paper px-4 py-2.5 sm:flex-row sm:items-center">
-                <div className="flex items-baseline gap-3">
-                  <span className="plate-badge font-mono text-sm font-semibold">
-                    {g.vehiclePlate}
-                  </span>
-                  <span className="font-mono text-xs text-muted">
-                    {g.quoteId}
-                  </span>
-                </div>
-                <span className="text-xs text-muted">
-                  {formatDateTime(g.createdAt)}
-                </span>
-              </div>
+          {groups.map((g) => {
+            const topLevel = g.lines.filter((l) => !l.parent_forfait);
+            const childrenOf = (code: string) =>
+              g.lines.filter((l) => l.parent_forfait === code);
 
-              <div className="divide-y divide-line">
-                {g.lines.map((l) => (
-                  <div
-                    key={l.forfait_code}
-                    className="flex items-center gap-3 px-4 py-2 text-sm"
-                  >
-                    <span className="w-32 shrink-0 font-mono text-xs text-ink">
-                      {l.forfait_code}
+            return (
+              <div
+                key={g.quoteId}
+                className="overflow-hidden rounded-lg border border-line bg-surface"
+              >
+                <div className="flex flex-col justify-between gap-1 border-b border-line bg-paper px-4 py-2.5 sm:flex-row sm:items-center">
+                  <div className="flex items-baseline gap-3">
+                    <span className="plate-badge font-mono text-sm font-semibold">
+                      {g.vehiclePlate}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-ink">
-                      {labelMap[l.forfait_code] ?? "—"}
-                    </span>
-                    <span className="shrink-0 text-xs text-muted">
-                      {Number(l.quantity)} × {formatEuro(l.unit_price)}
-                    </span>
-                    <span className="w-20 shrink-0 text-right font-medium text-ink">
-                      {formatEuro(l.line_price)}
+                    <span className="font-mono text-xs text-muted">
+                      {g.quoteId}
                     </span>
                   </div>
-                ))}
-              </div>
+                  <span className="text-xs text-muted">
+                    {formatDateTime(g.createdAt)}
+                  </span>
+                </div>
 
-              <div className="flex items-center justify-end gap-2 border-t border-line px-4 py-2.5">
-                <span className="text-xs uppercase tracking-wide text-muted">
-                  Totale (IVA escl.)
-                </span>
-                <span className="font-display text-lg font-bold text-ink">
-                  {formatEuro(g.total)}
-                </span>
+                <div className="divide-y divide-line">
+                  {topLevel.map((line) => (
+                    <div key={line.forfait_code}>
+                      <LineRow line={line} label={labelOf(line)} nested={false} />
+                      {line.item_type === "forfait" &&
+                        childrenOf(line.forfait_code).map((child) => (
+                          <LineRow
+                            key={child.forfait_code}
+                            line={child}
+                            label={labelOf(child)}
+                            nested
+                          />
+                        ))}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-end gap-2 border-t border-line px-4 py-2.5">
+                  <span className="text-xs uppercase tracking-wide text-muted">
+                    Totale (IVA escl.)
+                  </span>
+                  <span className="font-display text-lg font-bold text-ink">
+                    {formatEuro(g.total)}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

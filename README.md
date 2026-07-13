@@ -88,18 +88,29 @@ può impostarsi una password col flusso qui sopra.
 
 ## Modulo Preventivi
 
-Permette all'officina di costruire un preventivo linea per linea a partire
-dal listino forfait fisso (`util_forfait_fixed`).
+Permette all'officina di costruire un preventivo linea per linea, con
+articoli di tre tipi (colonna `item_type`):
 
-- La UI (`/dashboard/preventivi`) mostra i preventivi dell'officina e un
-  modale "Nuovo preventivo" con: targa veicolo, ricerca forfait per codice
-  o descrizione, aggiunta di più linee (quantità modificabile) e totale.
-- Il salvataggio passa dalla funzione `create_quote(p_vehicle_plate, p_lines)`
-  (`SECURITY DEFINER`): genera `shop_id` da `get_customer_id()` e
-  `quote_id` nel formato `<shop_id>-DDMMYY-HHMMSS` (timezone Europe/Rome),
-  e legge il prezzo unitario **dal listino** (non dal client). Le linee
-  finiscono in `util_shop_quotes` (una riga per forfait, PK composta
-  `quote_id + forfait_code`).
+- **forfait** — listino `util_forfait_fixed` (`price`);
+- **pneumatico** — listino `util_prix_sale_tires` (`prix_vente`, testo);
+- **ricambio** — `util_prix_sale_parts` (previsto, non ancora implementato).
+
+- La UI (`/dashboard/preventivi`) mostra i preventivi e un modale "Nuovo
+  preventivo" con: targa veicolo e una sezione catalogo a destra con tre
+  schede (Forfait / Ricambi / Pneumatici). La ricerca pneumatici filtra per
+  token sulla descrizione (es. "michelin 205 55 16"), su listino da ~48k
+  righe (indice trigram su `libelle`).
+- **Annidamento**: pneumatici/ricambi possono essere annidati in un forfait
+  (colonna `parent_forfait`). Gli articoli annidati mostrano il proprio
+  prezzo **barrato** e non contano nel totale (fa fede il prezzo del
+  forfait); quelli sfusi sono prezzati singolarmente.
+- Il salvataggio passa dalla funzione
+  `create_quote(p_vehicle_plate, p_lines, p_shop_id)` (`SECURITY DEFINER`):
+  genera `shop_id` e `quote_id` (`<shop_id>-DDMMYY-HHMMSS`, tz Europe/Rome),
+  legge il prezzo **dal listino corretto per tipo** (non dal client) e
+  valida che il `parent_forfait` sia un forfait di primo livello dello
+  stesso preventivo. Le linee finiscono in `util_shop_quotes` (una riga per
+  articolo, PK surrogata `id`).
 - Lettura protetta da RLS come per gli appuntamenti:
   `(shop_id = get_customer_id()) OR is_admin()`. L'inserimento avviene solo
   tramite la RPC (nessuna INSERT diretta).

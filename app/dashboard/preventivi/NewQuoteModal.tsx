@@ -3,17 +3,38 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatEuro } from "@/lib/money";
-import type { Forfait } from "@/lib/types";
+import type { Forfait, ItemType, Tire } from "@/lib/types";
 
-type Line = {
+type CatalogItem = { code: string; label: string; unit: number };
+
+type CartLine = {
+  key: string;
+  type: ItemType;
   code: string;
   label: string;
   unit: number;
   quantity: number;
+  parentForfait: string | null;
 };
 
 const inputClass =
   "w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-brand-dark";
+
+const TABS: { id: ItemType; label: string }[] = [
+  { id: "forfait", label: "Forfait" },
+  { id: "ricambio", label: "Ricambi" },
+  { id: "pneumatico", label: "Pneumatici" },
+];
+
+const TYPE_TAG: Record<ItemType, string> = {
+  forfait: "FOR",
+  ricambio: "RIC",
+  pneumatico: "PNE",
+};
+
+function keyOf(type: ItemType, code: string) {
+  return `${type}:${code}`;
+}
 
 export default function NewQuoteModal({
   shopId,
@@ -25,19 +46,25 @@ export default function NewQuoteModal({
   onCreated: () => void;
 }) {
   const [plate, setPlate] = useState("");
+  const [activeTab, setActiveTab] = useState<ItemType>("forfait");
   const [search, setSearch] = useState("");
-  const [results, setResults] = useState<Forfait[]>([]);
+  const [results, setResults] = useState<CatalogItem[]>([]);
   const [searching, setSearching] = useState(false);
-  const [lines, setLines] = useState<Line[]>([]);
+  const [lines, setLines] = useState<CartLine[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const searchSeq = useRef(0);
 
-  // Ricerca forfait con debounce su codice o descrizione.
+  // Ricerca nel listino della scheda attiva, con debounce.
   useEffect(() => {
-    const q = search.replace(/[,()*%:]/g, " ").trim();
-    if (q.length < 2) {
+    if (activeTab === "ricambio") {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    const raw = search.replace(/[,()*%:]/g, " ").trim();
+    if (raw.length < 2) {
       setResults([]);
       setSearching(false);
       return;
@@ -46,19 +73,45 @@ export default function NewQuoteModal({
     const seq = ++searchSeq.current;
     const timer = setTimeout(async () => {
       const supabase = createClient();
-      const { data } = await supabase
-        .from("util_forfait_fixed")
-        .select("code_reference, label_reference, price")
-        .or(`code_reference.ilike.*${q}*,label_reference.ilike.*${q}*`)
-        .not("price", "is", null)
-        .order("code_reference")
-        .limit(20);
-      if (seq !== searchSeq.current) return; // risultato obsoleto
-      setResults((data as Forfait[]) ?? []);
+      let items: CatalogItem[] = [];
+
+      if (activeTab === "forfait") {
+        const { data } = await supabase
+          .from("util_forfait_fixed")
+          .select("code_reference, label_reference, price")
+          .or(`code_reference.ilike.*${raw}*,label_reference.ilike.*${raw}*`)
+          .not("price", "is", null)
+          .order("code_reference")
+          .limit(20);
+        items = ((data as Forfait[]) ?? []).map((f) => ({
+          code: f.code_reference,
+          label: f.label_reference ?? "",
+          unit: Number(f.price ?? 0),
+        }));
+      } else if (activeTab === "pneumatico") {
+        let qb = supabase
+          .from("util_prix_sale_tires")
+          .select("reference, libelle, prix_vente")
+          .not("prix_vente", "is", null)
+          .neq("prix_vente", "")
+          .neq("prix_vente", "0");
+        for (const token of raw.split(/\s+/).filter(Boolean)) {
+          qb = qb.ilike("libelle", `%${token}%`);
+        }
+        const { data } = await qb.limit(20);
+        items = ((data as Tire[]) ?? []).map((t) => ({
+          code: t.reference,
+          label: t.libelle ?? "",
+          unit: Number(t.prix_vente ?? 0),
+        }));
+      }
+
+      if (seq !== searchSeq.current) return;
+      setResults(items);
       setSearching(false);
     }, 250);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, activeTab]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -68,41 +121,70 @@ export default function NewQuoteModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  function addForfait(f: Forfait) {
-    const unit = Number(f.price ?? 0);
+  function addItem(item: CatalogItem, type: ItemType) {
+    const key = keyOf(type, item.code);
     setLines((prev) => {
-      const existing = prev.find((l) => l.code === f.code_reference);
+      const existing = prev.find((l) => l.key === key);
       if (existing) {
         return prev.map((l) =>
-          l.code === f.code_reference ? { ...l, quantity: l.quantity + 1 } : l
+          l.key === key ? { ...l, quantity: l.quantity + 1 } : l
         );
       }
       return [
         ...prev,
         {
-          code: f.code_reference,
-          label: f.label_reference ?? "",
-          unit,
+          key,
+          type,
+          code: item.code,
+          label: item.label,
+          unit: item.unit,
           quantity: 1,
+          parentForfait: null,
         },
       ];
     });
-    setSearch("");
-    setResults([]);
   }
 
-  function setQuantity(code: string, value: string) {
+  function setQuantity(key: string, value: string) {
     const n = Math.max(1, Math.floor(Number(value) || 1));
     setLines((prev) =>
-      prev.map((l) => (l.code === code ? { ...l, quantity: n } : l))
+      prev.map((l) => (l.key === key ? { ...l, quantity: n } : l))
     );
   }
 
-  function removeLine(code: string) {
-    setLines((prev) => prev.filter((l) => l.code !== code));
+  function setParent(key: string, parent: string) {
+    setLines((prev) =>
+      prev.map((l) =>
+        l.key === key ? { ...l, parentForfait: parent || null } : l
+      )
+    );
   }
 
-  const total = lines.reduce((sum, l) => sum + l.unit * l.quantity, 0);
+  function removeLine(key: string) {
+    setLines((prev) => {
+      const line = prev.find((l) => l.key === key);
+      let next = prev.filter((l) => l.key !== key);
+      // Se rimuovo un forfait, i suoi annidati tornano sfusi.
+      if (line?.type === "forfait") {
+        next = next.map((l) =>
+          l.parentForfait === line.code ? { ...l, parentForfait: null } : l
+        );
+      }
+      return next;
+    });
+  }
+
+  const forfaitLines = lines.filter((l) => l.type === "forfait");
+  const looseLines = lines.filter(
+    (l) => l.type !== "forfait" && !l.parentForfait
+  );
+  const childrenOf = (code: string) =>
+    lines.filter((l) => l.parentForfait === code);
+
+  // Totale: solo righe di primo livello (gli annidati sono coperti dal forfait).
+  const total = lines
+    .filter((l) => !l.parentForfait)
+    .reduce((sum, l) => sum + l.unit * l.quantity, 0);
 
   async function handleSave() {
     setError(null);
@@ -120,7 +202,9 @@ export default function NewQuoteModal({
       p_vehicle_plate: plate.trim(),
       p_lines: lines.map((l) => ({
         forfait_code: l.code,
+        item_type: l.type,
         quantity: l.quantity,
+        parent_forfait: l.parentForfait,
       })),
       p_shop_id: shopId,
     });
@@ -130,6 +214,71 @@ export default function NewQuoteModal({
       return;
     }
     onCreated();
+  }
+
+  function renderCartLine(l: CartLine, nested: boolean) {
+    return (
+      <div
+        key={l.key}
+        className={`flex items-center gap-2 border-b border-line px-3 py-2 text-sm last:border-b-0 ${
+          nested ? "bg-paper/50 pl-6" : ""
+        }`}
+      >
+        <span className="shrink-0 rounded bg-line px-1 py-0.5 text-[9px] font-semibold tracking-wide text-muted">
+          {TYPE_TAG[l.type]}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-ink" title={l.label}>
+            {nested ? "↳ " : ""}
+            {l.label || l.code}
+          </p>
+          <p className="font-mono text-[11px] text-muted">{l.code}</p>
+        </div>
+
+        {l.type !== "forfait" && forfaitLines.length > 0 && (
+          <select
+            value={l.parentForfait ?? ""}
+            onChange={(e) => setParent(l.key, e.target.value)}
+            title="Annida in un forfait"
+            className="max-w-[7rem] shrink-0 rounded border border-line bg-surface px-1 py-1 text-[11px] text-ink focus:border-brand-dark"
+          >
+            <option value="">Sfuso</option>
+            {forfaitLines.map((f) => (
+              <option key={f.code} value={f.code}>
+                In: {f.code}
+              </option>
+            ))}
+          </select>
+        )}
+
+        <input
+          type="number"
+          min={1}
+          step={1}
+          value={l.quantity}
+          onChange={(e) => setQuantity(l.key, e.target.value)}
+          className="w-14 shrink-0 rounded border border-line bg-surface px-2 py-1 text-center text-sm focus:border-brand-dark"
+        />
+
+        <span
+          className={`w-20 shrink-0 text-right ${
+            nested
+              ? "text-xs text-muted line-through"
+              : "font-medium text-ink"
+          }`}
+        >
+          {formatEuro(l.unit * l.quantity)}
+        </span>
+
+        <button
+          onClick={() => removeLine(l.key)}
+          aria-label="Rimuovi"
+          className="w-5 shrink-0 text-muted transition hover:text-rust"
+        >
+          ✕
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -143,7 +292,7 @@ export default function NewQuoteModal({
         role="dialog"
         aria-modal="true"
         aria-label="Nuovo preventivo"
-        className="my-8 w-full max-w-2xl rounded-lg border border-line bg-surface shadow-lg"
+        className="my-8 w-full max-w-4xl rounded-lg border border-line bg-surface shadow-lg"
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <h2 className="font-display text-xl font-bold uppercase tracking-tight text-ink">
@@ -158,9 +307,8 @@ export default function NewQuoteModal({
           </button>
         </div>
 
-        <div className="flex flex-col gap-4 px-5 py-4">
-          {/* Targa */}
-          <div className="flex flex-col gap-1">
+        <div className="px-5 py-4">
+          <div className="mb-4 flex flex-col gap-1 sm:max-w-xs">
             <label htmlFor="plate" className="text-xs font-medium text-muted">
               Targa veicolo
             </label>
@@ -169,111 +317,114 @@ export default function NewQuoteModal({
               value={plate}
               onChange={(e) => setPlate(e.target.value.toUpperCase())}
               placeholder="ES. AB123CD"
-              className={`${inputClass} font-mono uppercase sm:w-56`}
+              className={`${inputClass} font-mono uppercase`}
             />
           </div>
 
-          {/* Ricerca forfait */}
-          <div className="flex flex-col gap-1">
-            <label htmlFor="forfait" className="text-xs font-medium text-muted">
-              Aggiungi forfait (cerca per codice o descrizione)
-            </label>
-            <div className="relative">
-              <input
-                id="forfait"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Es. CLE_010403 oppure “pulizia fap”"
-                className={inputClass}
-                autoComplete="off"
-              />
-              {(searching || results.length > 0) && (
-                <div className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-line bg-surface shadow-lg">
-                  {searching && (
-                    <p className="px-3 py-2 text-sm text-muted">Ricerca…</p>
-                  )}
-                  {!searching &&
-                    results.map((f) => (
-                      <button
-                        key={f.code_reference}
-                        onClick={() => addForfait(f)}
-                        className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition hover:bg-brand-tint"
-                      >
-                        <span className="w-32 shrink-0 font-mono text-xs text-ink">
-                          {f.code_reference}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-ink">
-                          {f.label_reference}
-                        </span>
-                        <span className="shrink-0 font-medium text-ink">
-                          {formatEuro(f.price)}
-                        </span>
-                      </button>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* Carrello preventivo */}
+            <div className="flex flex-col rounded-md border border-line">
+              <div className="border-b border-line bg-paper px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                Preventivo
+              </div>
+              <div className="max-h-[46vh] overflow-y-auto">
+                {lines.length === 0 ? (
+                  <p className="px-3 py-8 text-center text-sm text-muted">
+                    Aggiungi articoli dal catalogo a destra.
+                  </p>
+                ) : (
+                  <>
+                    {forfaitLines.map((f) => (
+                      <div key={f.key}>
+                        {renderCartLine(f, false)}
+                        {childrenOf(f.code).map((c) => renderCartLine(c, true))}
+                      </div>
                     ))}
-                  {!searching && results.length === 0 && (
-                    <p className="px-3 py-2 text-sm text-muted">
-                      Nessun forfait trovato.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Linee */}
-          <div className="rounded-md border border-line">
-            <div className="flex items-center gap-3 border-b border-line bg-paper px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
-              <span className="w-32 shrink-0">Codice</span>
-              <span className="min-w-0 flex-1">Descrizione</span>
-              <span className="w-16 shrink-0 text-center">Q.tà</span>
-              <span className="w-24 shrink-0 text-right">Prezzo</span>
-              <span className="w-24 shrink-0 text-right">Totale</span>
-              <span className="w-6 shrink-0" />
+                    {looseLines.map((l) => renderCartLine(l, false))}
+                  </>
+                )}
+              </div>
             </div>
 
-            {lines.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted">
-                Nessuna linea. Cerca un forfait qui sopra per aggiungerlo.
-              </p>
-            ) : (
-              lines.map((l) => (
-                <div
-                  key={l.code}
-                  className="flex items-center gap-3 border-b border-line px-3 py-2 text-sm last:border-b-0"
-                >
-                  <span className="w-32 shrink-0 font-mono text-xs text-ink">
-                    {l.code}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-ink">
-                    {l.label}
-                  </span>
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={l.quantity}
-                    onChange={(e) => setQuantity(l.code, e.target.value)}
-                    className="w-16 shrink-0 rounded border border-line bg-surface px-2 py-1 text-center text-sm focus:border-brand-dark"
-                  />
-                  <span className="w-24 shrink-0 text-right text-muted">
-                    {formatEuro(l.unit)}
-                  </span>
-                  <span className="w-24 shrink-0 text-right font-medium text-ink">
-                    {formatEuro(l.unit * l.quantity)}
-                  </span>
+            {/* Catalogo con schede */}
+            <div className="flex flex-col rounded-md border border-line">
+              <div className="flex border-b border-line">
+                {TABS.map((tab) => (
                   <button
-                    onClick={() => removeLine(l.code)}
-                    aria-label="Rimuovi linea"
-                    className="w-6 shrink-0 text-muted transition hover:text-rust"
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setSearch("");
+                      setResults([]);
+                    }}
+                    className={`flex-1 px-3 py-2 text-sm font-medium transition ${
+                      activeTab === tab.id
+                        ? "bg-brand-tint text-ink"
+                        : "text-muted hover:bg-paper hover:text-ink"
+                    }`}
                   >
-                    ✕
+                    {tab.label}
                   </button>
-                </div>
-              ))
-            )}
+                ))}
+              </div>
+
+              <div className="p-3">
+                {activeTab === "ricambio" ? (
+                  <p className="px-1 py-8 text-center text-sm text-muted">
+                    Ricerca ricambi in arrivo.
+                  </p>
+                ) : (
+                  <>
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder={
+                        activeTab === "forfait"
+                          ? "Cerca codice o descrizione…"
+                          : "Cerca marca o misura, es. “michelin 205 55 16”"
+                      }
+                      className={inputClass}
+                      autoComplete="off"
+                    />
+                    <div className="mt-2 max-h-[38vh] overflow-y-auto">
+                      {searching && (
+                        <p className="px-1 py-2 text-sm text-muted">Ricerca…</p>
+                      )}
+                      {!searching &&
+                        results.map((item) => (
+                          <button
+                            key={item.code}
+                            onClick={() => addItem(item, activeTab)}
+                            className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm transition hover:bg-brand-tint"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-ink" title={item.label}>
+                                {item.label}
+                              </p>
+                              <p className="font-mono text-[11px] text-muted">
+                                {item.code}
+                              </p>
+                            </div>
+                            <span className="shrink-0 font-medium text-ink">
+                              {formatEuro(item.unit)}
+                            </span>
+                          </button>
+                        ))}
+                      {!searching &&
+                        search.trim().length >= 2 &&
+                        results.length === 0 && (
+                          <p className="px-1 py-2 text-sm text-muted">
+                            Nessun risultato.
+                          </p>
+                        )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
-          {error && <p className="text-sm text-rust">{error}</p>}
+          {error && <p className="mt-3 text-sm text-rust">{error}</p>}
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t border-line px-5 py-3">

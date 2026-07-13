@@ -47,23 +47,46 @@ export default async function PreventiviPage({
     const { data: rows } = await supabase
       .from("util_shop_quotes")
       .select(
-        "quote_id, shop_id, vehicle_plate, forfait_code, quantity, unit_price, line_price, created_at"
+        "quote_id, shop_id, vehicle_plate, item_type, forfait_code, parent_forfait, quantity, unit_price, line_price, created_at"
       )
       .eq("shop_id", activeShopId)
       .order("created_at", { ascending: false });
     quoteRows = (rows ?? []) as QuoteRow[];
   }
 
-  // Etichette dei forfait per la visualizzazione delle linee.
-  const codes = Array.from(new Set(quoteRows.map((r) => r.forfait_code)));
+  // Etichette degli articoli per la visualizzazione, per tipo. La chiave è
+  // "<item_type>:<codice>" per evitare collisioni fra listini diversi.
   const labelMap: Record<string, string> = {};
-  if (codes.length > 0) {
+
+  const forfaitCodes = Array.from(
+    new Set(
+      quoteRows.filter((r) => r.item_type === "forfait").map((r) => r.forfait_code)
+    )
+  );
+  if (forfaitCodes.length > 0) {
     const { data: forfaits } = await supabase
       .from("util_forfait_fixed")
       .select("code_reference, label_reference")
-      .in("code_reference", codes);
+      .in("code_reference", forfaitCodes);
     for (const f of forfaits ?? []) {
-      labelMap[f.code_reference] = f.label_reference ?? "";
+      labelMap[`forfait:${f.code_reference}`] = f.label_reference ?? "";
+    }
+  }
+
+  const tireCodes = Array.from(
+    new Set(
+      quoteRows
+        .filter((r) => r.item_type === "pneumatico")
+        .map((r) => r.forfait_code)
+    )
+  );
+  if (tireCodes.length > 0) {
+    const { data: tires } = await supabase
+      .from("util_prix_sale_tires")
+      .select("reference, libelle")
+      .in("reference", tireCodes);
+    for (const t of tires ?? []) {
+      labelMap[`pneumatico:${t.reference}`] = t.libelle ?? "";
     }
   }
 
