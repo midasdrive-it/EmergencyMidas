@@ -10,10 +10,10 @@ export default function LoginPage() {
         <div className="mb-8 text-center">
           <Logo className="mx-auto mb-3 h-20 w-20" />
           <h1 className="font-display text-4xl font-bold uppercase leading-none tracking-tight text-ink">
-            <span className="block text-rust">Emergency</span>
+            <span className="block text-signal-green">Emergency</span>
             <span className="block">Midas</span>
           </h1>
-          <EcgLine className="mx-auto mt-3 h-6 w-48 text-rust" />
+          <EcgLine className="mx-auto mt-3 h-6 w-48 text-signal-green" />
           <p className="mt-2 font-display text-sm uppercase tracking-[0.25em] text-muted">
             Sistema di backup
           </p>
