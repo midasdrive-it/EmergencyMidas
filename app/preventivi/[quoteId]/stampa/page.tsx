@@ -246,6 +246,20 @@ export default async function StampaPreventivoPage({
         </table>
       </div>
 
+      {/* Firme */}
+      <div className="mt-16 grid grid-cols-2 gap-10 break-inside-avoid">
+        <div className="pt-14">
+          <div className="border-t border-ink pt-1.5 text-xs text-ink/80">
+            Firma addetto Midas
+          </div>
+        </div>
+        <div className="pt-14">
+          <div className="border-t border-ink pt-1.5 text-xs text-ink/80">
+            Firma Cliente
+          </div>
+        </div>
+      </div>
+
       <p className="mt-8 border-t border-line pt-3 text-[10px] leading-relaxed text-muted">
         Preventivo indicativo, valido salvo verifica e disponibilità. Prezzi in
         Euro. L&apos;IVA è calcolata in via approssimativa al 22%. Gli articoli
