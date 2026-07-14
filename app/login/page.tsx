@@ -1,6 +1,7 @@
 import LoginButton from "./LoginButton";
 import EmailPasswordForm from "./EmailPasswordForm";
 import Logo from "@/components/Logo";
+import EcgLine from "@/components/EcgLine";
 
 export default function LoginPage() {
   return (
@@ -8,11 +9,13 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <Logo className="mx-auto mb-3 h-20 w-20" />
-          <h1 className="font-display text-5xl font-bold uppercase tracking-tight text-ink">
-            Midas
+          <h1 className="font-display text-4xl font-bold uppercase leading-none tracking-tight text-ink">
+            <span className="block text-rust">Emergency</span>
+            <span className="block">Midas</span>
           </h1>
-          <p className="mt-1 font-display text-lg uppercase tracking-[0.2em] text-muted">
-            Backup Officina
+          <EcgLine className="mx-auto mt-3 h-6 w-48 text-rust" />
+          <p className="mt-2 font-display text-sm uppercase tracking-[0.25em] text-muted">
+            Sistema di backup
           </p>
         </div>
 

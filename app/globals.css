@@ -25,11 +25,29 @@ body {
   outline-offset: 2px;
 }
 
+/* Impulso ECG che scorre lungo la traccia */
+@keyframes ecg-sweep {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -115;
+  }
+}
+.ecg-sweep {
+  stroke-dasharray: 14 100;
+  animation: ecg-sweep 2.4s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+  /* Con reduced-motion mostra la traccia intera, ferma */
+  .ecg-sweep {
+    stroke-dasharray: none;
   }
 }
 

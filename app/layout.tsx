@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Midas Backup Officina",
+  title: "Emergency Midas",
   description:
-    "Strumento di consultazione di emergenza per le officine Midas Italia",
+    "Sistema di backup per le officine Midas Italia in caso di outage del gestionale",
 };
 
 export default function RootLayout({
