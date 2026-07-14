@@ -146,7 +146,7 @@ app/
   preventivi/[quoteId]/stampa/  vista PDF stampabile del preventivo
 components/
   Sidebar.tsx            navigazione moduli a sinistra
-  Logo.tsx               logo Midas (asset in public/midas-logo.svg)
+  Logo.tsx               logo Midas (asset in public/midas-logo.png)
 lib/
   supabase/              client browser/server + refresh sessione (middleware)
   dates.ts               utility date/settimane in timezone Europe/Rome

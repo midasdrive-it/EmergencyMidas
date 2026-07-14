@@ -1,6 +1,11 @@
-// Logo Midas. Sostituibile caricando il file ufficiale in
-// public/midas-logo.svg (o .png, aggiornando il src qui sotto).
+// Logo Midas. L'asset ufficiale è in public/midas-logo.png.
 export default function Logo({ className }: { className?: string }) {
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src="/midas-logo.svg" alt="Midas" className={className} />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/midas-logo.png"
+      alt="Midas"
+      className={`object-contain ${className ?? ""}`}
+    />
+  );
 }
