@@ -299,7 +299,7 @@ export default function QuoteModal({
   const vat = net * VAT_RATE;
   const gross = net + vat;
 
-  const shopName = shop?.User_Name || shop?.Legal_Name || shopId || "Officina";
+  const shopName = shop?.Legal_Name || shop?.User_Name || shopId || "Officina";
 
   async function handleSave() {
     setError(null);
@@ -507,6 +507,11 @@ export default function QuoteModal({
               <p className="font-display text-lg font-bold uppercase leading-tight tracking-tight text-ink">
                 {shopName}
               </p>
+              {shop?.User_Name && shop.User_Name !== shopName && (
+                <p className="text-[11px] leading-tight text-ink/70">
+                  {shop.User_Name}
+                </p>
+              )}
               <p className="text-[11px] leading-tight text-muted">
                 {[shop?.Postal_Code, shop?.Town].filter(Boolean).join(" ")}
                 {shop?.Province ? ` (${shop.Province})` : ""}

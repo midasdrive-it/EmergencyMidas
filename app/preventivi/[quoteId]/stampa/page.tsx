@@ -134,7 +134,7 @@ export default async function StampaPreventivoPage({
   const gross = net + vat;
 
   const plate = lines[0].vehicle_plate;
-  const shopName = shop?.User_Name || shop?.Legal_Name || shopId;
+  const shopName = shop?.Legal_Name || shop?.User_Name || shopId;
 
   function Row({ line, nested }: { line: QuoteRow; nested: boolean }) {
     return (
@@ -176,6 +176,11 @@ export default async function StampaPreventivoPage({
               <span className="block font-display text-xl font-bold uppercase tracking-tight">
                 {shopName}
               </span>
+              {shop?.User_Name && shop.User_Name !== shopName && (
+                <span className="block text-xs text-ink/70">
+                  {shop.User_Name}
+                </span>
+              )}
               {shop?.User_ID && (
                 <span className="block font-mono text-xs text-muted">
                   MIDAS {shop.User_ID}
