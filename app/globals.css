@@ -93,3 +93,16 @@ body {
   padding: 4px 7px;
   font-size: 13px;
 }
+
+/* Variante compatta: sfondo blu, testo bianco (lista/modale preventivi) */
+.plate-badge-solid {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  background: #1b3a8f;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}

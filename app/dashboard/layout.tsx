@@ -49,11 +49,11 @@ export default async function DashboardLayout({
               <Logo className="h-9 w-9" />
               <div className="leading-tight">
                 <p className="font-display text-xl font-bold uppercase tracking-tight">
-                  Emergency - Midas
+                  <span className="text-signal-green">Emergency</span> - Midas
                 </p>
                 <div className="mt-0.5 flex items-center gap-2">
                   <p className="text-xs text-ink/70">sistema di backup</p>
-                  <EcgLine className="h-3.5 w-16 text-ink/70" />
+                  <EcgLine className="h-3.5 w-16 text-signal-green" />
                 </div>
               </div>
             </div>

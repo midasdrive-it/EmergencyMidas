@@ -164,7 +164,7 @@ export default function QuotesView({
               key={g.quoteId}
               className="flex flex-col gap-2 border-b border-line px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3 sm:py-2.5"
             >
-              <span className="plate-badge w-fit shrink-0 px-1 font-mono text-sm font-semibold sm:w-28">
+              <span className="plate-badge-solid w-fit shrink-0 px-2 py-1 text-sm sm:w-28 sm:justify-center">
                 {g.vehiclePlate}
               </span>
               <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted">

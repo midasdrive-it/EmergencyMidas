@@ -181,12 +181,6 @@ export default async function StampaPreventivoPage({
                   {shop.User_Name}
                 </span>
               )}
-              {shop?.User_ID && (
-                <span className="block font-mono text-xs text-muted">
-                  MIDAS {shop.User_ID}
-                  {shop?.Town ? ` - ${shop.Town}` : ""}
-                </span>
-              )}
             </div>
           </div>
           <div className="text-xs leading-relaxed text-ink/80">

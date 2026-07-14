@@ -552,7 +552,7 @@ export default function QuoteModal({
                 className={`${inputClass} w-40 font-mono uppercase`}
               />
             ) : (
-              <span className="plate-badge px-1 font-mono text-sm font-semibold">
+              <span className="plate-badge-solid px-2 py-1 text-sm">
                 {plate}
               </span>
             )}
