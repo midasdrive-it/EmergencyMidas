@@ -215,7 +215,7 @@ export default async function StampaPreventivoPage({
         <tbody>
           {topLevel.flatMap((line) => [
             <Row key={`t-${line.id}`} line={line} nested={false} />,
-            ...(line.item_type === "forfait" && line.forfait_code
+            ...(line.forfait_code
               ? childrenOf(line.forfait_code).map((child) => (
                   <Row key={`c-${child.id}`} line={child} nested />
                 ))

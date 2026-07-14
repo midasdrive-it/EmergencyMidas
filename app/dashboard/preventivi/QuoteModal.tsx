@@ -93,6 +93,7 @@ export default function QuoteModal({
   const [results, setResults] = useState<CatalogItem[]>([]);
   const [searching, setSearching] = useState(false);
   const [freeDesc, setFreeDesc] = useState("");
+  const [freeCode, setFreeCode] = useState("");
   const [freePrice, setFreePrice] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -212,6 +213,19 @@ export default function QuoteModal({
     });
   }
 
+  function usedCodes(): Set<string> {
+    return new Set(
+      lines.map((l) => l.code).filter((c): c is string => Boolean(c))
+    );
+  }
+
+  function nextFreeCode(): string {
+    const used = usedCodes();
+    let n = 1;
+    while (used.has(`LIB-${n}`)) n++;
+    return `LIB-${n}`;
+  }
+
   function addFreeLine() {
     const desc = freeDesc.trim();
     const price = parseNum(freePrice);
@@ -223,6 +237,11 @@ export default function QuoteModal({
       setError("Prezzo non valido per la riga libera.");
       return;
     }
+    const code = freeCode.trim() || nextFreeCode();
+    if (usedCodes().has(code)) {
+      setError(`Codice "${code}" già usato nel preventivo.`);
+      return;
+    }
     setError(null);
     const key = `libero:new:${++freeSeq.current}`;
     setLines((prev) => [
@@ -230,7 +249,7 @@ export default function QuoteModal({
       {
         key,
         type: "libero",
-        code: null,
+        code,
         label: desc,
         unit: price,
         unitStr: freePrice.trim(),
@@ -239,6 +258,7 @@ export default function QuoteModal({
       },
     ]);
     setFreeDesc("");
+    setFreeCode("");
     setFreePrice("");
   }
 
@@ -250,7 +270,8 @@ export default function QuoteModal({
     setLines((prev) => {
       const line = prev.find((l) => l.key === key);
       let next = prev.filter((l) => l.key !== key);
-      if (line?.type === "forfait" && line.code) {
+      // Se rimuovo un contenitore, i suoi articoli annidati tornano sfusi.
+      if (line?.code) {
         next = next.map((l) =>
           l.parentForfait === line.code ? { ...l, parentForfait: null } : l
         );
@@ -262,12 +283,15 @@ export default function QuoteModal({
   const unitOf = (l: CartLine) =>
     l.type === "libero" ? parseNum(l.unitStr ?? "") || 0 : l.unit;
 
-  const forfaitLines = lines.filter((l) => l.type === "forfait");
-  const looseLines = lines.filter(
-    (l) => l.type !== "forfait" && !l.parentForfait
-  );
+  const topLevel = lines.filter((l) => !l.parentForfait);
   const childrenOf = (code: string | null) =>
     code ? lines.filter((l) => l.parentForfait === code) : [];
+  // Contenitori disponibili per l'annidamento: forfait e righe libere di
+  // primo livello (con codice).
+  const parentCandidates = lines.filter(
+    (l) =>
+      !l.parentForfait && l.code && (l.type === "forfait" || l.type === "libero")
+  );
 
   const net = lines
     .filter((l) => !l.parentForfait)
@@ -311,7 +335,7 @@ export default function QuoteModal({
       l.type === "libero"
         ? {
             item_type: "libero",
-            forfait_code: null,
+            forfait_code: l.code,
             description: l.label.trim(),
             unit_price: unitOf(l),
             quantity: parseNum(l.quantity),
@@ -348,6 +372,12 @@ export default function QuoteModal({
 
   function DocLine({ l, nested }: { l: CartLine; nested: boolean }) {
     const isFree = l.type === "libero";
+    const hasChildren = l.code
+      ? lines.some((x) => x.parentForfait === l.code)
+      : false;
+    const parentOptions = parentCandidates.filter((p) => p.key !== l.key);
+    const showParent =
+      editing && l.type !== "forfait" && !hasChildren && parentOptions.length > 0;
     return (
       <div
         className={`flex items-center gap-2 border-b border-line px-3 py-2 text-sm last:border-b-0 ${
@@ -360,12 +390,19 @@ export default function QuoteModal({
 
         <div className="min-w-0 flex-1">
           {editing && isFree ? (
-            <input
-              value={l.label}
-              onChange={(e) => patchLine(l.key, { label: e.target.value })}
-              placeholder="Descrizione"
-              className="w-full rounded border border-line bg-surface px-2 py-1 text-sm focus:border-brand-dark"
-            />
+            <>
+              <input
+                value={l.label}
+                onChange={(e) => patchLine(l.key, { label: e.target.value })}
+                placeholder="Descrizione"
+                className="w-full rounded border border-line bg-surface px-2 py-1 text-sm focus:border-brand-dark"
+              />
+              {l.code && (
+                <p className="mt-0.5 font-mono text-[10px] text-muted">
+                  {l.code}
+                </p>
+              )}
+            </>
           ) : (
             <>
               <p className="truncate text-ink" title={l.label}>
@@ -379,24 +416,21 @@ export default function QuoteModal({
           )}
         </div>
 
-        {editing && l.type !== "forfait" && forfaitLines.length > 0 && (
+        {showParent && (
           <select
             value={l.parentForfait ?? ""}
             onChange={(e) =>
               patchLine(l.key, { parentForfait: e.target.value || null })
             }
-            title="Annida in un forfait"
+            title="Annida in un forfait o in una voce libera"
             className="max-w-[7rem] shrink-0 rounded border border-line bg-surface px-1 py-1 text-[11px] text-ink focus:border-brand-dark"
           >
             <option value="">Sfuso</option>
-            {forfaitLines.map(
-              (f) =>
-                f.code && (
-                  <option key={f.code} value={f.code}>
-                    In: {f.code}
-                  </option>
-                )
-            )}
+            {parentOptions.map((p) => (
+              <option key={p.key} value={p.code as string}>
+                In: {p.code}
+              </option>
+            ))}
           </select>
         )}
 
@@ -551,11 +585,18 @@ export default function QuoteModal({
                       className={inputClass}
                     />
                     <input
+                      value={freeCode}
+                      onChange={(e) => setFreeCode(e.target.value)}
+                      placeholder="Codice (opz.)"
+                      title="Lascia vuoto per un codice automatico (LIB-n)"
+                      className={`${inputClass} font-mono sm:w-32`}
+                    />
+                    <input
                       value={freePrice}
                       onChange={(e) => setFreePrice(e.target.value)}
                       inputMode="decimal"
                       placeholder="Prezzo €"
-                      className={`${inputClass} sm:w-32`}
+                      className={`${inputClass} sm:w-28`}
                     />
                     <button
                       onClick={addFreeLine}
@@ -634,16 +675,13 @@ export default function QuoteModal({
               </p>
             ) : (
               <>
-                {forfaitLines.map((f) => (
-                  <div key={f.key}>
-                    <DocLine l={f} nested={false} />
-                    {childrenOf(f.code).map((c) => (
+                {topLevel.map((top) => (
+                  <div key={top.key}>
+                    <DocLine l={top} nested={false} />
+                    {childrenOf(top.code).map((c) => (
                       <DocLine key={c.key} l={c} nested />
                     ))}
                   </div>
-                ))}
-                {looseLines.map((l) => (
-                  <DocLine key={l.key} l={l} nested={false} />
                 ))}
               </>
             )}

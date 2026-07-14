@@ -109,10 +109,13 @@ articoli di tre tipi (colonna `item_type`):
   `update_quote(p_quote_id, p_vehicle_plate, p_lines)` (`SECURITY DEFINER`):
   verifica che il preventivo sia della propria officina (o admin), poi
   sostituisce le righe rileggendo i prezzi dai listini.
-- **Annidamento**: pneumatici/ricambi possono essere annidati in un forfait
-  (colonna `parent_forfait`). Gli articoli annidati mostrano il proprio
-  prezzo **barrato** e non contano nel totale (fa fede il prezzo del
-  forfait); quelli sfusi sono prezzati singolarmente.
+- **Annidamento**: pneumatici, ricambi e voci libere possono essere annidati
+  in un **contenitore** (un forfait oppure una voce libera di primo livello,
+  identificata dal suo codice) tramite `parent_forfait`. Gli articoli
+  annidati mostrano il proprio prezzo **barrato** e non contano nel totale
+  (fa fede il prezzo del contenitore); quelli sfusi sono prezzati
+  singolarmente. Le voci libere hanno un codice (inserito o auto-generato
+  `LIB-n`) proprio per poter fare da contenitore.
 - Il salvataggio passa dalla funzione
   `create_quote(p_vehicle_plate, p_lines, p_shop_id)` (`SECURITY DEFINER`):
   genera `shop_id` e `quote_id` (`<shop_id>-DDMMYY-HHMMSS`, tz Europe/Rome),
