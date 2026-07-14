@@ -7,6 +7,17 @@ import PrintToolbar from "./PrintToolbar";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({
+  params,
+}: {
+  params: { quoteId: string };
+}) {
+  const quoteId = decodeURIComponent(params.quoteId);
+  // Sostituisce il titolo di pagina (mostrato dal browser nell'intestazione
+  // di stampa al posto di "Emergency Midas").
+  return { title: `Preventivo ${quoteId}` };
+}
+
 const VAT_RATE = 0.22;
 
 function formatDateTime(iso: string): string {
@@ -161,9 +172,17 @@ export default async function StampaPreventivoPage({
         <div>
           <div className="mb-1 flex items-center gap-2">
             <Logo className="h-9 w-9 print-exact" />
-            <span className="font-display text-xl font-bold uppercase tracking-tight">
-              {shopName}
-            </span>
+            <div>
+              <span className="block font-display text-xl font-bold uppercase tracking-tight">
+                {shopName}
+              </span>
+              {shop?.User_ID && (
+                <span className="block font-mono text-xs text-muted">
+                  MIDAS {shop.User_ID}
+                  {shop?.Town ? ` - ${shop.Town}` : ""}
+                </span>
+              )}
+            </div>
           </div>
           <div className="text-xs leading-relaxed text-ink/80">
             {shop?.Address && <p>{shop.Address}</p>}
@@ -267,6 +286,9 @@ export default async function StampaPreventivoPage({
         Euro. L&apos;IVA è calcolata in via approssimativa al 22%. Gli articoli
         inclusi in un forfait (prezzo barrato) sono compresi nel prezzo del
         forfait stesso.
+        <br />
+        Documento prodotto utilizzando un software di backup (EMidas), a
+        causa di un&apos;indisponibilità temporanea del gestionale ufficiale.
       </p>
     </main>
   );

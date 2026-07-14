@@ -14,19 +14,27 @@ export default function PrintToolbar() {
   }, []);
 
   return (
-    <div className="no-print mb-6 flex items-center justify-between gap-3">
-      <button
-        onClick={() => window.close()}
-        className="rounded-md border border-line px-3 py-1.5 text-sm font-medium text-ink transition hover:border-brand-dark hover:bg-brand-tint"
-      >
-        ← Chiudi
-      </button>
-      <button
-        onClick={() => window.print()}
-        className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-paper transition hover:bg-brand hover:text-ink"
-      >
-        Stampa / Salva PDF
-      </button>
+    <div className="no-print mb-6 flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <button
+          onClick={() => window.close()}
+          className="rounded-md border border-line px-3 py-1.5 text-sm font-medium text-ink transition hover:border-brand-dark hover:bg-brand-tint"
+        >
+          ← Chiudi
+        </button>
+        <button
+          onClick={() => window.print()}
+          className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-paper transition hover:bg-brand hover:text-ink"
+        >
+          Stampa / Salva PDF
+        </button>
+      </div>
+      <p className="text-xs text-muted">
+        Per un PDF pulito, nella finestra di stampa apri &quot;Altre
+        impostazioni&quot; e disattiva &quot;Intestazioni e piè di
+        pagina&quot;: rimuove titolo, data e indirizzo aggiunti
+        automaticamente dal browser.
+      </p>
     </div>
   );
 }

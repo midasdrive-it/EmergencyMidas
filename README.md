@@ -132,9 +132,15 @@ articoli di tre tipi (colonna `item_type`):
   non è possibile falsificare lo `shop_id`).
 - **Stampa/PDF**: ogni preventivo ha un link "Stampa PDF" verso una pagina
   dedicata (`/preventivi/<quote_id>/stampa`, fuori dal layout dashboard) con
-  intestazione dati officina, righe (annidamento incluso) e totali
-  imponibile / IVA (22% approssimato) / totale. Usa la stampa del browser
-  ("Salva come PDF"), senza dipendenze aggiuntive.
+  intestazione dati officina (incluso `MIDAS <User_ID> - <Town>`), righe
+  (annidamento incluso) e totali imponibile / IVA (22% approssimato) /
+  totale, più una nota che il documento è prodotto da EMidas, il software
+  di backup, per indisponibilità temporanea del gestionale ufficiale. Usa la
+  stampa del browser ("Salva come PDF"), senza dipendenze aggiuntive; la
+  pagina imposta un titolo dedicato (`Preventivo <quote_id>`) al posto del
+  titolo generale dell'app nell'intestazione di stampa del browser — l'URL
+  in fondo è aggiunto dal browser stesso e va disattivato da lì
+  ("Intestazioni e piè di pagina" nella finestra di stampa).
 
 ## Struttura
 
