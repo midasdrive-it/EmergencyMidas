@@ -24,7 +24,7 @@ export type ShopDetails = {
   Province: string | null;
 };
 
-export type ItemType = "forfait" | "ricambio" | "pneumatico" | "libero";
+export type ItemType = "forfait" | "ricambio" | "pneumatico" | "libero" | "sconto";
 
 export type ShopHeader = {
   User_ID: string;

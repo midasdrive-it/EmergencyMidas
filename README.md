@@ -89,13 +89,18 @@ può impostarsi una password col flusso qui sopra.
 ## Modulo Preventivi
 
 Permette all'officina di costruire un preventivo linea per linea, con
-articoli di tre tipi (colonna `item_type`):
+articoli di più tipi (colonna `item_type`):
 
 - **forfait** — listino `util_forfait_fixed` (`price`);
 - **pneumatico** — listino `util_prix_sale_tires` (`prix_vente`, testo);
 - **ricambio** — listino `util_prix_sale_parts` (`pv`, double precision);
 - **libero** — riga a testo libero: descrizione (`description`) e prezzo
-  inseriti dall'utente (nessun codice; `forfait_code` nullo).
+  inseriti dall'utente (nessun codice; `forfait_code` nullo);
+- **sconto** — riga di sconto: l'utente inserisce un importo positivo (es.
+  `50`), la RPC lo salva come **negativo** (`unit_price = -abs(valore)`,
+  quantità forzata a `1`). Trattato come un articolo qualunque ai fini del
+  database (stessa tabella, stesso flusso), ma non annidabile né annidabile
+  al suo interno; sottratto dall'imponibile prima del calcolo IVA.
 
 - La UI (`/dashboard/preventivi`) elenca i preventivi **una riga per
   preventivo** (veicolo, numero, data, totale) con un pulsante **Apri** che

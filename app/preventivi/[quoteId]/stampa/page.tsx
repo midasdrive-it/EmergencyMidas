@@ -121,7 +121,7 @@ export default async function StampaPreventivoPage({
   }
 
   const labelOf = (l: QuoteRow) =>
-    l.item_type === "libero"
+    l.item_type === "libero" || l.item_type === "sconto"
       ? l.description ?? ""
       : labelMap[`${l.item_type}:${l.forfait_code}`] ?? "";
 
@@ -147,7 +147,7 @@ export default async function StampaPreventivoPage({
           {labelOf(line) || "—"}
         </td>
         <td className="border-b border-line py-1.5 pr-2 text-right align-top tabular-nums">
-          {Number(line.quantity)}
+          {line.item_type === "sconto" ? "—" : Number(line.quantity)}
         </td>
         <td className="border-b border-line py-1.5 pr-2 text-right align-top tabular-nums">
           {formatEuro(line.unit_price)}

@@ -29,6 +29,7 @@ const TABS: { id: ItemType; label: string }[] = [
   { id: "ricambio", label: "Ricambi" },
   { id: "pneumatico", label: "Pneumatici" },
   { id: "libero", label: "Libero" },
+  { id: "sconto", label: "Sconto" },
 ];
 
 const TYPE_TAG: Record<ItemType, string> = {
@@ -36,6 +37,7 @@ const TYPE_TAG: Record<ItemType, string> = {
   ricambio: "RIC",
   pneumatico: "PNE",
   libero: "LIB",
+  sconto: "SCO",
 };
 
 function parseNum(s: string): number {
@@ -68,18 +70,18 @@ export default function QuoteModal({
   const [lines, setLines] = useState<CartLine[]>(() => {
     if (mode === "create" || !initialLines) return [];
     return initialLines.map((r) => {
-      const isFree = r.item_type === "libero";
+      const isFreeText = r.item_type === "libero" || r.item_type === "sconto";
       return {
-        key: isFree
-          ? `libero:${r.id}`
+        key: isFreeText
+          ? `${r.item_type}:${r.id}`
           : `${r.item_type}:${r.forfait_code}`,
         type: r.item_type,
         code: r.forfait_code,
-        label: isFree
+        label: isFreeText
           ? r.description ?? ""
           : labelMap?.[`${r.item_type}:${r.forfait_code}`] ?? "",
         unit: Number(r.unit_price),
-        unitStr: isFree
+        unitStr: isFreeText
           ? String(r.unit_price).replace(".", ",")
           : undefined,
         quantity: String(r.quantity).replace(".", ","),
@@ -95,10 +97,13 @@ export default function QuoteModal({
   const [freeDesc, setFreeDesc] = useState("");
   const [freeCode, setFreeCode] = useState("");
   const [freePrice, setFreePrice] = useState("");
+  const [discDesc, setDiscDesc] = useState("");
+  const [discAmount, setDiscAmount] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchSeq = useRef(0);
   const freeSeq = useRef(0);
+  const discSeq = useRef(0);
 
   const createdAt = initialLines?.[0]?.created_at;
 
@@ -111,7 +116,7 @@ export default function QuoteModal({
   }, [onClose]);
 
   useEffect(() => {
-    if (!editing || activeTab === "libero") {
+    if (!editing || activeTab === "libero" || activeTab === "sconto") {
       setResults([]);
       setSearching(false);
       return;
@@ -262,6 +267,32 @@ export default function QuoteModal({
     setFreePrice("");
   }
 
+  function addDiscountLine() {
+    const amount = parseNum(discAmount);
+    if (!isFinite(amount) || amount <= 0) {
+      setError("Inserisci un importo sconto valido (es. 50).");
+      return;
+    }
+    setError(null);
+    const key = `sconto:new:${++discSeq.current}`;
+    const desc = discDesc.trim() || "Sconto";
+    setLines((prev) => [
+      ...prev,
+      {
+        key,
+        type: "sconto",
+        code: null,
+        label: desc,
+        unit: -Math.abs(amount),
+        unitStr: String(-Math.abs(amount)).replace(".", ","),
+        quantity: "1",
+        parentForfait: null,
+      },
+    ]);
+    setDiscDesc("");
+    setDiscAmount("");
+  }
+
   function patchLine(key: string, patch: Partial<CartLine>) {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
@@ -281,7 +312,9 @@ export default function QuoteModal({
   }
 
   const unitOf = (l: CartLine) =>
-    l.type === "libero" ? parseNum(l.unitStr ?? "") || 0 : l.unit;
+    l.type === "libero" || l.type === "sconto"
+      ? parseNum(l.unitStr ?? "") || 0
+      : l.unit;
 
   const topLevel = lines.filter((l) => !l.parentForfait);
   const childrenOf = (code: string | null) =>
@@ -328,15 +361,22 @@ export default function QuoteModal({
           return;
         }
       }
+      if (l.type === "sconto") {
+        const u = parseNum(l.unitStr ?? "");
+        if (!isFinite(u) || u === 0) {
+          setError(`Importo non valido per lo sconto "${l.label}".`);
+          return;
+        }
+      }
     }
     setSaving(true);
     const supabase = createClient();
     const payloadLines = lines.map((l) =>
-      l.type === "libero"
+      l.type === "libero" || l.type === "sconto"
         ? {
-            item_type: "libero",
+            item_type: l.type,
             forfait_code: l.code,
-            description: l.label.trim(),
+            description: l.label.trim() || (l.type === "sconto" ? "Sconto" : ""),
             unit_price: unitOf(l),
             quantity: parseNum(l.quantity),
             parent_forfait: l.parentForfait,
@@ -371,13 +411,18 @@ export default function QuoteModal({
   }
 
   function DocLine({ l, nested }: { l: CartLine; nested: boolean }) {
-    const isFree = l.type === "libero";
+    const isFree = l.type === "libero" || l.type === "sconto";
+    const isDiscount = l.type === "sconto";
     const hasChildren = l.code
       ? lines.some((x) => x.parentForfait === l.code)
       : false;
     const parentOptions = parentCandidates.filter((p) => p.key !== l.key);
     const showParent =
-      editing && l.type !== "forfait" && !hasChildren && parentOptions.length > 0;
+      editing &&
+      l.type !== "forfait" &&
+      l.type !== "sconto" &&
+      !hasChildren &&
+      parentOptions.length > 0;
     return (
       <div
         className={`flex items-center gap-2 border-b border-line px-3 py-2 text-sm last:border-b-0 ${
@@ -450,8 +495,12 @@ export default function QuoteModal({
           </span>
         )}
 
-        {/* Quantità */}
-        {editing ? (
+        {/* Quantità (fissa a 1 per lo sconto) */}
+        {isDiscount ? (
+          <span className="w-14 shrink-0 text-center text-sm text-muted">
+            —
+          </span>
+        ) : editing ? (
           <input
             type="text"
             inputMode="decimal"
@@ -605,6 +654,28 @@ export default function QuoteModal({
                     />
                     <button
                       onClick={addFreeLine}
+                      className="shrink-0 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-paper transition hover:bg-brand hover:text-ink"
+                    >
+                      Aggiungi
+                    </button>
+                  </div>
+                ) : activeTab === "sconto" ? (
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      value={discDesc}
+                      onChange={(e) => setDiscDesc(e.target.value)}
+                      placeholder="Descrizione (opz., es. Sconto cliente)"
+                      className={inputClass}
+                    />
+                    <input
+                      value={discAmount}
+                      onChange={(e) => setDiscAmount(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="Importo € (es. 50)"
+                      className={`${inputClass} sm:w-40`}
+                    />
+                    <button
+                      onClick={addDiscountLine}
                       className="shrink-0 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-paper transition hover:bg-brand hover:text-ink"
                     >
                       Aggiungi
