@@ -6,7 +6,7 @@ import { formatEuro } from "@/lib/money";
 import Logo from "@/components/Logo";
 import type { Forfait, ItemType, Part, QuoteRow, ShopHeader, Tire } from "@/lib/types";
 
-type CatalogItem = { code: string; label: string; unit: number };
+type CatalogItem = { code: string; label: string; unit: number; purchase: number };
 
 type CartLine = {
   key: string;
@@ -15,6 +15,7 @@ type CartLine = {
   label: string;
   unit: number;
   unitStr?: string; // prezzo editabile (righe libere)
+  purchase: number; // prezzo di acquisto (0 per forfait/sconto)
   quantity: string;
   parentForfait: string | null;
 };
@@ -42,6 +43,44 @@ const TYPE_TAG: Record<ItemType, string> = {
 
 function parseNum(s: string): number {
   return Number(String(s).replace(",", "."));
+}
+
+// Stima lato client del prezzo di acquisto, solo per l'anteprima del
+// margine mentre si compone il preventivo: preferisce il distributore
+// "MIDAS" se presente, altrimenti il minimo tra i distributori disponibili.
+// Il prezzo autorevole viene comunque ririsolto lato server al salvataggio.
+async function fetchPurchaseMap(
+  table: "util_prix_purchase_tires" | "util_prix_purchase_parts",
+  codes: string[]
+): Promise<Record<string, number>> {
+  const uniqueCodes = Array.from(new Set(codes)).filter(Boolean);
+  if (uniqueCodes.length === 0) return {};
+  const supabase = createClient();
+  const { data } = await supabase
+    .from(table)
+    .select("reference, distributor, prix_achat")
+    .in("reference", uniqueCodes);
+  const rows =
+    (data as {
+      reference: string;
+      distributor: string;
+      prix_achat: string | number | null;
+    }[]) ?? [];
+  const midas: Record<string, number> = {};
+  const mins: Record<string, number> = {};
+  for (const row of rows) {
+    const price = parseNum(String(row.prix_achat ?? ""));
+    if (!isFinite(price)) continue;
+    if (row.distributor === "MIDAS") midas[row.reference] = price;
+    if (mins[row.reference] === undefined || price < mins[row.reference]) {
+      mins[row.reference] = price;
+    }
+  }
+  const result: Record<string, number> = {};
+  for (const code of uniqueCodes) {
+    result[code] = midas[code] ?? mins[code] ?? 0;
+  }
+  return result;
 }
 
 export default function QuoteModal({
@@ -84,6 +123,7 @@ export default function QuoteModal({
         unitStr: isFreeText
           ? String(r.unit_price).replace(".", ",")
           : undefined,
+        purchase: Number(r.purchase_price ?? 0),
         quantity: String(r.quantity).replace(".", ","),
         parentForfait: r.parent_forfait,
       };
@@ -97,6 +137,7 @@ export default function QuoteModal({
   const [freeDesc, setFreeDesc] = useState("");
   const [freeCode, setFreeCode] = useState("");
   const [freePrice, setFreePrice] = useState("");
+  const [freePurchase, setFreePurchase] = useState("");
   const [discDesc, setDiscDesc] = useState("");
   const [discAmount, setDiscAmount] = useState("");
   const [saving, setSaving] = useState(false);
@@ -147,6 +188,7 @@ export default function QuoteModal({
           code: f.code_reference,
           label: f.label_reference ?? "",
           unit: Number(f.price ?? 0),
+          purchase: 0,
         }));
       } else if (activeTab === "pneumatico") {
         const descCond =
@@ -161,10 +203,16 @@ export default function QuoteModal({
           .neq("prix_vente", "0")
           .or(`reference.ilike.*${codeQ}*,${descCond}`)
           .limit(20);
-        items = ((data as Tire[]) ?? []).map((t) => ({
+        const tires = (data as Tire[]) ?? [];
+        const purchaseMap = await fetchPurchaseMap(
+          "util_prix_purchase_tires",
+          tires.map((t) => t.reference)
+        );
+        items = tires.map((t) => ({
           code: t.reference,
           label: t.libelle ?? "",
           unit: Number(t.prix_vente ?? 0),
+          purchase: purchaseMap[t.reference] ?? 0,
         }));
       } else if (activeTab === "ricambio") {
         const descCond =
@@ -178,10 +226,16 @@ export default function QuoteModal({
           .gt("pv", 0)
           .or(`reference.ilike.*${codeQ}*,${descCond}`)
           .limit(20);
-        items = ((data as Part[]) ?? []).map((p) => ({
+        const parts = (data as Part[]) ?? [];
+        const purchaseMap = await fetchPurchaseMap(
+          "util_prix_purchase_parts",
+          parts.map((p) => p.reference)
+        );
+        items = parts.map((p) => ({
           code: p.reference,
           label: p.description ?? "",
           unit: Number(p.pv ?? 0),
+          purchase: purchaseMap[p.reference] ?? 0,
         }));
       }
 
@@ -211,6 +265,7 @@ export default function QuoteModal({
           code: item.code,
           label: item.label,
           unit: item.unit,
+          purchase: item.purchase,
           quantity: "1",
           parentForfait: null,
         },
@@ -242,6 +297,11 @@ export default function QuoteModal({
       setError("Prezzo non valido per la riga libera.");
       return;
     }
+    const purchase = freePurchase.trim() ? parseNum(freePurchase) : 0;
+    if (!isFinite(purchase) || purchase < 0) {
+      setError("Prezzo di acquisto non valido per la riga libera.");
+      return;
+    }
     const code = freeCode.trim() || nextFreeCode();
     if (usedCodes().has(code)) {
       setError(`Codice "${code}" già usato nel preventivo.`);
@@ -258,6 +318,7 @@ export default function QuoteModal({
         label: desc,
         unit: price,
         unitStr: freePrice.trim(),
+        purchase,
         quantity: "1",
         parentForfait: null,
       },
@@ -265,6 +326,7 @@ export default function QuoteModal({
     setFreeDesc("");
     setFreeCode("");
     setFreePrice("");
+    setFreePurchase("");
   }
 
   function addDiscountLine() {
@@ -285,6 +347,7 @@ export default function QuoteModal({
         label: desc,
         unit: -Math.abs(amount),
         unitStr: String(-Math.abs(amount)).replace(".", ","),
+        purchase: 0,
         quantity: "1",
         parentForfait: null,
       },
@@ -332,6 +395,16 @@ export default function QuoteModal({
   const vat = net * VAT_RATE;
   const gross = net + vat;
 
+  // Il costo di acquisto conta per TUTTE le righe (anche annidate): un
+  // ricambio incluso in un forfait ha comunque un costo reale, anche se il
+  // suo prezzo di vendita è barrato e non conteggiato nel totale.
+  const purchaseTotal = lines.reduce(
+    (s, l) => s + l.purchase * (parseNum(l.quantity) || 0),
+    0
+  );
+  const margin = net - purchaseTotal;
+  const marginRate = net !== 0 ? (margin / net) * 100 : 0;
+
   const shopName = shop?.Legal_Name || shop?.User_Name || shopId || "Officina";
 
   async function handleSave() {
@@ -372,11 +445,21 @@ export default function QuoteModal({
     setSaving(true);
     const supabase = createClient();
     const payloadLines = lines.map((l) =>
-      l.type === "libero" || l.type === "sconto"
+      l.type === "libero"
         ? {
-            item_type: l.type,
+            item_type: "libero",
             forfait_code: l.code,
-            description: l.label.trim() || (l.type === "sconto" ? "Sconto" : ""),
+            description: l.label.trim(),
+            unit_price: unitOf(l),
+            purchase_price: l.purchase,
+            quantity: parseNum(l.quantity),
+            parent_forfait: l.parentForfait,
+          }
+        : l.type === "sconto"
+        ? {
+            item_type: "sconto",
+            forfait_code: l.code,
+            description: l.label.trim() || "Sconto",
             unit_price: unitOf(l),
             quantity: parseNum(l.quantity),
             parent_forfait: l.parentForfait,
@@ -649,8 +732,16 @@ export default function QuoteModal({
                       value={freePrice}
                       onChange={(e) => setFreePrice(e.target.value)}
                       inputMode="decimal"
-                      placeholder="Prezzo €"
-                      className={`${inputClass} sm:w-28`}
+                      placeholder="Prezzo vendita €"
+                      className={`${inputClass} sm:w-32`}
+                    />
+                    <input
+                      value={freePurchase}
+                      onChange={(e) => setFreePurchase(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="Prezzo acquisto € (opz.)"
+                      title="Costo di acquisto, per il calcolo del margine (non stampato nel PDF)"
+                      className={`${inputClass} sm:w-40`}
                     />
                     <button
                       onClick={addFreeLine}
@@ -763,7 +854,33 @@ export default function QuoteModal({
             )}
           </div>
 
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex flex-col items-end gap-3 sm:flex-row sm:justify-end sm:gap-6">
+            <div className="rounded-md border border-dashed border-line bg-paper px-3 py-2 text-sm tabular-nums">
+              <p className="mb-1 text-[10px] uppercase tracking-wide text-muted">
+                Dato interno — non stampato nel PDF
+              </p>
+              <div className="flex items-center justify-between gap-6">
+                <span className="text-muted">Margine</span>
+                <span
+                  className={`font-medium ${
+                    margin < 0 ? "text-rust" : "text-signal-green"
+                  }`}
+                >
+                  {formatEuro(margin)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-6">
+                <span className="text-muted">Tasso di margine</span>
+                <span
+                  className={`font-medium ${
+                    margin < 0 ? "text-rust" : "text-signal-green"
+                  }`}
+                >
+                  {marginRate.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+
             <table className="text-sm tabular-nums">
               <tbody>
                 <tr>

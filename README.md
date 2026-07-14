@@ -102,6 +102,32 @@ articoli di più tipi (colonna `item_type`):
   database (stessa tabella, stesso flusso), ma non annidabile né annidabile
   al suo interno; sottratto dall'imponibile prima del calcolo IVA.
 
+### Prezzo di acquisto e margine
+
+Ogni riga salva anche `purchase_price` (snapshot al momento del
+salvataggio, come `unit_price`):
+
+- **forfait** e **sconto** → sempre `0` (nessun costo diretto);
+- **pneumatico** / **ricambio** → risolto server-side dai listini di
+  acquisto (`util_prix_purchase_tires` / `util_prix_purchase_parts`):
+  preferisce il distributore `MIDAS` se presente, altrimenti il **minimo**
+  tra i distributori disponibili per quel codice (entrambe le tabelle hanno
+  più righe per `reference`, una per `distributor`);
+- **libero** → inserito manualmente dall'utente (campo opzionale, default
+  `0`).
+
+Nel modale, mentre si compone il preventivo, il margine è stimato anche
+lato client (stessa logica MIDAS→minimo) per un'anteprima immediata; il
+valore salvato è comunque quello ririsolto server-side al momento del
+salvataggio, non quello inviato dal client.
+
+Margine e tasso di margine sono mostrati **solo nel modale** (mai nella
+stampa PDF): il margine conta il costo di **tutte** le righe, incluse
+quelle annidate sotto un forfait (un ricambio incluso in un forfait ha
+comunque un costo reale anche se il suo prezzo di vendita è barrato),
+mentre il ricavo (imponibile) resta quello di sola prima riga, come per i
+totali.
+
 - La UI (`/dashboard/preventivi`) elenca i preventivi **una riga per
   preventivo** (veicolo, numero, data, totale) con un pulsante **Apri** che
   mostra il preventivo in un modale in **stile documento/PDF** (crea / vedi /

@@ -67,6 +67,7 @@ export type QuoteRow = {
   parent_forfait: string | null;
   quantity: number;
   unit_price: number;
+  purchase_price: number;
   line_price: number;
   created_at: string;
 };

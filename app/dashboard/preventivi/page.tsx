@@ -47,7 +47,7 @@ export default async function PreventiviPage({
     const { data: rows } = await supabase
       .from("util_shop_quotes")
       .select(
-        "id, quote_id, shop_id, vehicle_plate, item_type, forfait_code, description, parent_forfait, quantity, unit_price, line_price, created_at"
+        "id, quote_id, shop_id, vehicle_plate, item_type, forfait_code, description, parent_forfait, quantity, unit_price, purchase_price, line_price, created_at"
       )
       .eq("shop_id", activeShopId)
       .order("created_at", { ascending: false });
