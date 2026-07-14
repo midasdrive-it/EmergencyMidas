@@ -95,12 +95,18 @@ articoli di tre tipi (colonna `item_type`):
 - **pneumatico** — listino `util_prix_sale_tires` (`prix_vente`, testo);
 - **ricambio** — listino `util_prix_sale_parts` (`pv`, double precision).
 
-- La UI (`/dashboard/preventivi`) mostra i preventivi e un modale "Nuovo
-  preventivo" con: targa veicolo e una sezione catalogo a destra con tre
-  schede (Forfait / Ricambi / Pneumatici). Pneumatici e ricambi: ricerca per
-  token sulla descrizione (es. "michelin 205 55 16") **oppure** per codice
-  (`reference`). Listini da ~48k e ~170k righe, con indici trigram su
-  descrizione (`libelle`/`description`) e su `reference`.
+- La UI (`/dashboard/preventivi`) elenca i preventivi **una riga per
+  preventivo** (veicolo, numero, data, totale) con un pulsante **Apri** che
+  mostra il preventivo in un modale in **stile documento/PDF** (crea / vedi /
+  modifica). Il modale ha un catalogo a tre schede (Forfait / Ricambi /
+  Pneumatici): pneumatici e ricambi si cercano per token sulla descrizione
+  (es. "michelin 205 55 16") **oppure** per codice (`reference`). Listini da
+  ~48k e ~170k righe, con indici trigram su descrizione e `reference`.
+- Le **quantità** possono essere frazionate (es. `5,5`).
+- Modifica di un preventivo esistente via
+  `update_quote(p_quote_id, p_vehicle_plate, p_lines)` (`SECURITY DEFINER`):
+  verifica che il preventivo sia della propria officina (o admin), poi
+  sostituisce le righe rileggendo i prezzi dai listini.
 - **Annidamento**: pneumatici/ricambi possono essere annidati in un forfait
   (colonna `parent_forfait`). Gli articoli annidati mostrano il proprio
   prezzo **barrato** e non contano nel totale (fa fede il prezzo del
@@ -137,8 +143,10 @@ app/
     calendario/         consultazione appuntamenti settimana per settimana
     preventivi/         lista preventivi + modale creazione linea per linea
   access-denied/        utente autenticato ma senza officina collegata
+  preventivi/[quoteId]/stampa/  vista PDF stampabile del preventivo
 components/
   Sidebar.tsx            navigazione moduli a sinistra
+  Logo.tsx               logo Midas (asset in public/midas-logo.svg)
 lib/
   supabase/              client browser/server + refresh sessione (middleware)
   dates.ts               utility date/settimane in timezone Europe/Rome

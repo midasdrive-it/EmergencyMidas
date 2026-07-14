@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
+import Logo from "@/components/Logo";
 
 function displayNameFromEmail(email: string): string {
   const local = email.split("@")[0] ?? email;
@@ -44,9 +45,7 @@ export default async function DashboardLayout({
         <header className="bg-brand text-ink">
           <div className="flex items-center justify-between px-4 py-3 sm:px-6">
             <div className="flex items-center gap-3">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-ink font-display text-lg font-bold text-brand">
-                M
-              </span>
+              <Logo className="h-9 w-9 rounded-md" />
               <div className="leading-tight">
                 <p className="font-display text-xl font-bold uppercase tracking-tight">
                   Midas Backup Officina

@@ -26,6 +26,18 @@ export type ShopDetails = {
 
 export type ItemType = "forfait" | "ricambio" | "pneumatico";
 
+export type ShopHeader = {
+  User_ID: string;
+  User_Name: string | null;
+  Legal_Name: string | null;
+  Address: string | null;
+  Town: string | null;
+  Province: string | null;
+  Postal_Code: string | null;
+  VAT_Code: string | null;
+  Mail: string | null;
+};
+
 export type Forfait = {
   code_reference: string;
   label_reference: string | null;

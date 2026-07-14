@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatEuro } from "@/lib/money";
 import type { QuoteRow } from "@/lib/types";
+import Logo from "@/components/Logo";
 import PrintToolbar from "./PrintToolbar";
 
 export const dynamic = "force-dynamic";
@@ -152,9 +153,7 @@ export default async function StampaPreventivoPage({
       <div className="print-exact flex items-start justify-between gap-6 border-b-2 border-brand pb-4">
         <div>
           <div className="mb-1 flex items-center gap-2">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-ink font-display text-base font-bold text-brand print-exact">
-              M
-            </span>
+            <Logo className="h-9 w-9 print-exact" />
             <span className="font-display text-xl font-bold uppercase tracking-tight">
               {shopName}
             </span>

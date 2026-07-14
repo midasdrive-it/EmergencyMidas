@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { QuoteRow, ShopOption } from "@/lib/types";
+import type { QuoteRow, ShopHeader, ShopOption } from "@/lib/types";
 import QuotesView from "./QuotesView";
 
 export const dynamic = "force-dynamic";
@@ -107,6 +107,19 @@ export default async function PreventiviPage({
     }
   }
 
+  // Dati officina attiva per l'intestazione (stile PDF) del modale.
+  let shop: ShopHeader | null = null;
+  if (activeShopId) {
+    const { data } = await supabase
+      .from("customers")
+      .select(
+        'User_ID, User_Name, Legal_Name, Address, Town, Province, Postal_Code, VAT_Code, Mail'
+      )
+      .eq("User_ID", activeShopId)
+      .maybeSingle();
+    shop = (data as ShopHeader) ?? null;
+  }
+
   // Un utente officina crea sempre per sé (shop_id lato server); un admin
   // crea per l'officina selezionata.
   const canCreate = Boolean(myShopId) || (Boolean(isAdmin) && Boolean(activeShopId));
@@ -119,6 +132,7 @@ export default async function PreventiviPage({
       activeShopId={activeShopId}
       canCreate={canCreate}
       createShopId={createShopId}
+      shop={shop}
       rows={quoteRows}
       labelMap={labelMap}
     />
