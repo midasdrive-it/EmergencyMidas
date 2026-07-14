@@ -134,7 +134,7 @@ export default async function StampaPreventivoPage({
   const gross = net + vat;
 
   const plate = lines[0].vehicle_plate;
-  const shopName = shop?.Legal_Name || shop?.User_Name || shopId;
+  const shopName = shop?.User_Name || shop?.Legal_Name || shopId;
 
   function Row({ line, nested }: { line: QuoteRow; nested: boolean }) {
     return (
@@ -287,8 +287,8 @@ export default async function StampaPreventivoPage({
         inclusi in un forfait (prezzo barrato) sono compresi nel prezzo del
         forfait stesso.
         <br />
-        Documento prodotto utilizzando un software di backup (EMidas), a
-        causa di un&apos;indisponibilità temporanea del gestionale ufficiale.
+        Documento prodotto utilizzando un software di backup, a causa di
+        un&apos;indisponibilità temporanea del gestionale ufficiale EMidas.
       </p>
     </main>
   );

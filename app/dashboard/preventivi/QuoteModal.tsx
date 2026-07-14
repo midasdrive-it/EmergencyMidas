@@ -299,7 +299,7 @@ export default function QuoteModal({
   const vat = net * VAT_RATE;
   const gross = net + vat;
 
-  const shopName = shop?.Legal_Name || shop?.User_Name || shopId || "Officina";
+  const shopName = shop?.User_Name || shop?.Legal_Name || shopId || "Officina";
 
   async function handleSave() {
     setError(null);
