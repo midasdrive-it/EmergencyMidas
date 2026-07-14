@@ -11,9 +11,10 @@ type CatalogItem = { code: string; label: string; unit: number };
 type CartLine = {
   key: string;
   type: ItemType;
-  code: string;
+  code: string | null;
   label: string;
   unit: number;
+  unitStr?: string; // prezzo editabile (righe libere)
   quantity: string;
   parentForfait: string | null;
 };
@@ -27,19 +28,17 @@ const TABS: { id: ItemType; label: string }[] = [
   { id: "forfait", label: "Forfait" },
   { id: "ricambio", label: "Ricambi" },
   { id: "pneumatico", label: "Pneumatici" },
+  { id: "libero", label: "Libero" },
 ];
 
 const TYPE_TAG: Record<ItemType, string> = {
   forfait: "FOR",
   ricambio: "RIC",
   pneumatico: "PNE",
+  libero: "LIB",
 };
 
-function keyOf(type: ItemType, code: string) {
-  return `${type}:${code}`;
-}
-
-function parseQty(s: string): number {
+function parseNum(s: string): number {
   return Number(String(s).replace(",", "."));
 }
 
@@ -68,24 +67,37 @@ export default function QuoteModal({
   );
   const [lines, setLines] = useState<CartLine[]>(() => {
     if (mode === "create" || !initialLines) return [];
-    return initialLines.map((r) => ({
-      key: keyOf(r.item_type, r.forfait_code),
-      type: r.item_type,
-      code: r.forfait_code,
-      label: labelMap?.[`${r.item_type}:${r.forfait_code}`] ?? "",
-      unit: Number(r.unit_price),
-      quantity: String(r.quantity).replace(".", ","),
-      parentForfait: r.parent_forfait,
-    }));
+    return initialLines.map((r) => {
+      const isFree = r.item_type === "libero";
+      return {
+        key: isFree
+          ? `libero:${r.id}`
+          : `${r.item_type}:${r.forfait_code}`,
+        type: r.item_type,
+        code: r.forfait_code,
+        label: isFree
+          ? r.description ?? ""
+          : labelMap?.[`${r.item_type}:${r.forfait_code}`] ?? "",
+        unit: Number(r.unit_price),
+        unitStr: isFree
+          ? String(r.unit_price).replace(".", ",")
+          : undefined,
+        quantity: String(r.quantity).replace(".", ","),
+        parentForfait: r.parent_forfait,
+      };
+    });
   });
 
   const [activeTab, setActiveTab] = useState<ItemType>("forfait");
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<CatalogItem[]>([]);
   const [searching, setSearching] = useState(false);
+  const [freeDesc, setFreeDesc] = useState("");
+  const [freePrice, setFreePrice] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchSeq = useRef(0);
+  const freeSeq = useRef(0);
 
   const createdAt = initialLines?.[0]?.created_at;
 
@@ -98,7 +110,11 @@ export default function QuoteModal({
   }, [onClose]);
 
   useEffect(() => {
-    if (!editing) return;
+    if (!editing || activeTab === "libero") {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
     const raw = search.replace(/[,()*%:]/g, " ").trim();
     if (raw.length < 2) {
       setResults([]);
@@ -144,7 +160,7 @@ export default function QuoteModal({
           label: t.libelle ?? "",
           unit: Number(t.prix_vente ?? 0),
         }));
-      } else {
+      } else if (activeTab === "ricambio") {
         const descCond =
           tokens.length > 1
             ? `and(${tokens.map((t) => `description.ilike.*${t}*`).join(",")})`
@@ -171,13 +187,13 @@ export default function QuoteModal({
   }, [search, activeTab, editing]);
 
   function addItem(item: CatalogItem, type: ItemType) {
-    const key = keyOf(type, item.code);
+    const key = `${type}:${item.code}`;
     setLines((prev) => {
       const existing = prev.find((l) => l.key === key);
       if (existing) {
         return prev.map((l) =>
           l.key === key
-            ? { ...l, quantity: String(parseQty(l.quantity) + 1 || 1) }
+            ? { ...l, quantity: String((parseNum(l.quantity) || 0) + 1) }
             : l
         );
       }
@@ -196,25 +212,45 @@ export default function QuoteModal({
     });
   }
 
-  function setQuantity(key: string, value: string) {
-    setLines((prev) =>
-      prev.map((l) => (l.key === key ? { ...l, quantity: value } : l))
-    );
+  function addFreeLine() {
+    const desc = freeDesc.trim();
+    const price = parseNum(freePrice);
+    if (!desc) {
+      setError("Inserisci una descrizione per la riga libera.");
+      return;
+    }
+    if (!isFinite(price) || price < 0) {
+      setError("Prezzo non valido per la riga libera.");
+      return;
+    }
+    setError(null);
+    const key = `libero:new:${++freeSeq.current}`;
+    setLines((prev) => [
+      ...prev,
+      {
+        key,
+        type: "libero",
+        code: null,
+        label: desc,
+        unit: price,
+        unitStr: freePrice.trim(),
+        quantity: "1",
+        parentForfait: null,
+      },
+    ]);
+    setFreeDesc("");
+    setFreePrice("");
   }
 
-  function setParent(key: string, parent: string) {
-    setLines((prev) =>
-      prev.map((l) =>
-        l.key === key ? { ...l, parentForfait: parent || null } : l
-      )
-    );
+  function patchLine(key: string, patch: Partial<CartLine>) {
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }
 
   function removeLine(key: string) {
     setLines((prev) => {
       const line = prev.find((l) => l.key === key);
       let next = prev.filter((l) => l.key !== key);
-      if (line?.type === "forfait") {
+      if (line?.type === "forfait" && line.code) {
         next = next.map((l) =>
           l.parentForfait === line.code ? { ...l, parentForfait: null } : l
         );
@@ -223,16 +259,19 @@ export default function QuoteModal({
     });
   }
 
+  const unitOf = (l: CartLine) =>
+    l.type === "libero" ? parseNum(l.unitStr ?? "") || 0 : l.unit;
+
   const forfaitLines = lines.filter((l) => l.type === "forfait");
   const looseLines = lines.filter(
     (l) => l.type !== "forfait" && !l.parentForfait
   );
-  const childrenOf = (code: string) =>
-    lines.filter((l) => l.parentForfait === code);
+  const childrenOf = (code: string | null) =>
+    code ? lines.filter((l) => l.parentForfait === code) : [];
 
   const net = lines
     .filter((l) => !l.parentForfait)
-    .reduce((s, l) => s + l.unit * (parseQty(l.quantity) || 0), 0);
+    .reduce((s, l) => s + unitOf(l) * (parseNum(l.quantity) || 0), 0);
   const vat = net * VAT_RATE;
   const gross = net + vat;
 
@@ -249,20 +288,42 @@ export default function QuoteModal({
       return;
     }
     for (const l of lines) {
-      const q = parseQty(l.quantity);
+      const q = parseNum(l.quantity);
       if (!isFinite(q) || q <= 0) {
-        setError(`Quantità non valida per ${l.code}.`);
+        setError(`Quantità non valida per "${l.label || l.code}".`);
         return;
+      }
+      if (l.type === "libero") {
+        if (!l.label.trim()) {
+          setError("Una riga libera è senza descrizione.");
+          return;
+        }
+        const u = parseNum(l.unitStr ?? "");
+        if (!isFinite(u) || u < 0) {
+          setError(`Prezzo non valido per "${l.label}".`);
+          return;
+        }
       }
     }
     setSaving(true);
     const supabase = createClient();
-    const payloadLines = lines.map((l) => ({
-      forfait_code: l.code,
-      item_type: l.type,
-      quantity: parseQty(l.quantity),
-      parent_forfait: l.parentForfait,
-    }));
+    const payloadLines = lines.map((l) =>
+      l.type === "libero"
+        ? {
+            item_type: "libero",
+            forfait_code: null,
+            description: l.label.trim(),
+            unit_price: unitOf(l),
+            quantity: parseNum(l.quantity),
+            parent_forfait: l.parentForfait,
+          }
+        : {
+            item_type: l.type,
+            forfait_code: l.code,
+            quantity: parseNum(l.quantity),
+            parent_forfait: l.parentForfait,
+          }
+    );
 
     const { error } =
       mode === "create" || !quoteId
@@ -286,6 +347,7 @@ export default function QuoteModal({
   }
 
   function DocLine({ l, nested }: { l: CartLine; nested: boolean }) {
+    const isFree = l.type === "libero";
     return (
       <div
         className={`flex items-center gap-2 border-b border-line px-3 py-2 text-sm last:border-b-0 ${
@@ -295,54 +357,87 @@ export default function QuoteModal({
         <span className="shrink-0 rounded bg-line px-1 py-0.5 text-[9px] font-semibold tracking-wide text-muted">
           {TYPE_TAG[l.type]}
         </span>
+
         <div className="min-w-0 flex-1">
-          <p className="truncate text-ink" title={l.label}>
-            {nested ? "↳ " : ""}
-            {l.label || l.code}
-          </p>
-          <p className="font-mono text-[11px] text-muted">{l.code}</p>
+          {editing && isFree ? (
+            <input
+              value={l.label}
+              onChange={(e) => patchLine(l.key, { label: e.target.value })}
+              placeholder="Descrizione"
+              className="w-full rounded border border-line bg-surface px-2 py-1 text-sm focus:border-brand-dark"
+            />
+          ) : (
+            <>
+              <p className="truncate text-ink" title={l.label}>
+                {nested ? "↳ " : ""}
+                {l.label || l.code}
+              </p>
+              {l.code && (
+                <p className="font-mono text-[11px] text-muted">{l.code}</p>
+              )}
+            </>
+          )}
         </div>
 
         {editing && l.type !== "forfait" && forfaitLines.length > 0 && (
           <select
             value={l.parentForfait ?? ""}
-            onChange={(e) => setParent(l.key, e.target.value)}
+            onChange={(e) =>
+              patchLine(l.key, { parentForfait: e.target.value || null })
+            }
             title="Annida in un forfait"
             className="max-w-[7rem] shrink-0 rounded border border-line bg-surface px-1 py-1 text-[11px] text-ink focus:border-brand-dark"
           >
             <option value="">Sfuso</option>
-            {forfaitLines.map((f) => (
-              <option key={f.code} value={f.code}>
-                In: {f.code}
-              </option>
-            ))}
+            {forfaitLines.map(
+              (f) =>
+                f.code && (
+                  <option key={f.code} value={f.code}>
+                    In: {f.code}
+                  </option>
+                )
+            )}
           </select>
         )}
 
+        {/* Prezzo unitario */}
+        {editing && isFree ? (
+          <input
+            type="text"
+            inputMode="decimal"
+            value={l.unitStr ?? ""}
+            onChange={(e) => patchLine(l.key, { unitStr: e.target.value })}
+            placeholder="€"
+            className="w-20 shrink-0 rounded border border-line bg-surface px-2 py-1 text-right text-sm focus:border-brand-dark"
+          />
+        ) : (
+          <span className="w-20 shrink-0 text-right text-xs text-muted tabular-nums">
+            {formatEuro(unitOf(l))}
+          </span>
+        )}
+
+        {/* Quantità */}
         {editing ? (
           <input
             type="text"
             inputMode="decimal"
             value={l.quantity}
-            onChange={(e) => setQuantity(l.key, e.target.value)}
-            className="w-16 shrink-0 rounded border border-line bg-surface px-2 py-1 text-center text-sm focus:border-brand-dark"
+            onChange={(e) => patchLine(l.key, { quantity: e.target.value })}
+            className="w-14 shrink-0 rounded border border-line bg-surface px-2 py-1 text-center text-sm focus:border-brand-dark"
           />
         ) : (
-          <span className="w-16 shrink-0 text-center text-sm text-ink tabular-nums">
+          <span className="w-14 shrink-0 text-center text-sm text-ink tabular-nums">
             {l.quantity}
           </span>
         )}
 
-        <span className="hidden w-20 shrink-0 text-right text-xs text-muted tabular-nums sm:block">
-          {formatEuro(l.unit)}
-        </span>
-
+        {/* Importo */}
         <span
           className={`w-20 shrink-0 text-right tabular-nums ${
             nested ? "text-xs text-muted line-through" : "font-medium text-ink"
           }`}
         >
-          {formatEuro(l.unit * (parseQty(l.quantity) || 0))}
+          {formatEuro(unitOf(l) * (parseNum(l.quantity) || 0))}
         </span>
 
         {editing && (
@@ -371,7 +466,6 @@ export default function QuoteModal({
         aria-label="Preventivo"
         className="my-8 w-full max-w-3xl rounded-lg border border-line bg-surface shadow-lg"
       >
-        {/* Intestazione stile documento */}
         <div className="flex items-start justify-between gap-4 border-b-2 border-brand px-6 py-4">
           <div className="flex items-center gap-3">
             <Logo className="h-10 w-10" />
@@ -407,7 +501,6 @@ export default function QuoteModal({
         </div>
 
         <div className="px-6 py-4">
-          {/* Targa */}
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs font-medium uppercase tracking-wide text-muted">
               Veicolo
@@ -426,7 +519,6 @@ export default function QuoteModal({
             )}
           </div>
 
-          {/* Aggiungi articoli (solo in modifica) */}
           {editing && (
             <div className="mb-4 rounded-md border border-line">
               <div className="flex border-b border-line">
@@ -448,67 +540,96 @@ export default function QuoteModal({
                   </button>
                 ))}
               </div>
+
               <div className="p-3">
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={
-                    activeTab === "forfait"
-                      ? "Cerca codice o descrizione…"
-                      : activeTab === "pneumatico"
-                      ? "Cerca codice, marca o misura…"
-                      : "Cerca codice o descrizione ricambio…"
-                  }
-                  className={inputClass}
-                  autoComplete="off"
-                />
-                {(searching || results.length > 0) && (
-                  <div className="mt-2 max-h-52 overflow-y-auto rounded border border-line">
-                    {searching && (
-                      <p className="px-3 py-2 text-sm text-muted">Ricerca…</p>
-                    )}
-                    {!searching &&
-                      results.map((item) => (
-                        <button
-                          key={item.code}
-                          onClick={() => addItem(item, activeTab)}
-                          className="flex w-full items-center gap-2 border-b border-line px-3 py-2 text-left text-sm transition last:border-b-0 hover:bg-brand-tint"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-ink" title={item.label}>
-                              {item.label}
-                            </p>
-                            <p className="font-mono text-[11px] text-muted">
-                              {item.code}
-                            </p>
-                          </div>
-                          <span className="shrink-0 font-medium text-ink">
-                            {formatEuro(item.unit)}
-                          </span>
-                        </button>
-                      ))}
+                {activeTab === "libero" ? (
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      value={freeDesc}
+                      onChange={(e) => setFreeDesc(e.target.value)}
+                      placeholder="Descrizione voce libera"
+                      className={inputClass}
+                    />
+                    <input
+                      value={freePrice}
+                      onChange={(e) => setFreePrice(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="Prezzo €"
+                      className={`${inputClass} sm:w-32`}
+                    />
+                    <button
+                      onClick={addFreeLine}
+                      className="shrink-0 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-paper transition hover:bg-brand hover:text-ink"
+                    >
+                      Aggiungi
+                    </button>
                   </div>
+                ) : (
+                  <>
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder={
+                        activeTab === "forfait"
+                          ? "Cerca codice o descrizione…"
+                          : activeTab === "pneumatico"
+                          ? "Cerca codice, marca o misura…"
+                          : "Cerca codice o descrizione ricambio…"
+                      }
+                      className={inputClass}
+                      autoComplete="off"
+                    />
+                    {(searching || results.length > 0) && (
+                      <div className="mt-2 max-h-52 overflow-y-auto rounded border border-line">
+                        {searching && (
+                          <p className="px-3 py-2 text-sm text-muted">
+                            Ricerca…
+                          </p>
+                        )}
+                        {!searching &&
+                          results.map((item) => (
+                            <button
+                              key={item.code}
+                              onClick={() => addItem(item, activeTab)}
+                              className="flex w-full items-center gap-2 border-b border-line px-3 py-2 text-left text-sm transition last:border-b-0 hover:bg-brand-tint"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p
+                                  className="truncate text-ink"
+                                  title={item.label}
+                                >
+                                  {item.label}
+                                </p>
+                                <p className="font-mono text-[11px] text-muted">
+                                  {item.code}
+                                </p>
+                              </div>
+                              <span className="shrink-0 font-medium text-ink">
+                                {formatEuro(item.unit)}
+                              </span>
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
           )}
 
-          {/* Righe */}
           <div className="rounded-md border border-line">
             <div className="flex items-center gap-2 border-b border-line bg-paper px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted">
               <span className="w-8 shrink-0" />
               <span className="min-w-0 flex-1">Articolo</span>
-              <span className="w-16 shrink-0 text-center">Q.tà</span>
-              <span className="hidden w-20 shrink-0 text-right sm:block">
-                Prezzo
-              </span>
+              <span className="w-20 shrink-0 text-right">Prezzo</span>
+              <span className="w-14 shrink-0 text-center">Q.tà</span>
               <span className="w-20 shrink-0 text-right">Importo</span>
               {editing && <span className="w-5 shrink-0" />}
             </div>
             {lines.length === 0 ? (
               <p className="px-3 py-8 text-center text-sm text-muted">
                 {editing
-                  ? "Aggiungi articoli dal catalogo qui sopra."
+                  ? "Aggiungi articoli dal catalogo o una voce libera."
                   : "Nessun articolo."}
               </p>
             ) : (
@@ -528,7 +649,6 @@ export default function QuoteModal({
             )}
           </div>
 
-          {/* Totali */}
           <div className="mt-4 flex justify-end">
             <table className="text-sm tabular-nums">
               <tbody>
@@ -559,7 +679,6 @@ export default function QuoteModal({
           {error && <p className="mt-3 text-sm text-rust">{error}</p>}
         </div>
 
-        {/* Footer azioni */}
         <div className="flex items-center justify-between gap-3 border-t border-line px-6 py-3">
           <button
             onClick={onClose}

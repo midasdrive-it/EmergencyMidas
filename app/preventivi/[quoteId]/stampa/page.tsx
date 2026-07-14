@@ -40,7 +40,7 @@ export default async function StampaPreventivoPage({
   const { data: rows } = await supabase
     .from("util_shop_quotes")
     .select(
-      "quote_id, shop_id, vehicle_plate, item_type, forfait_code, parent_forfait, quantity, unit_price, line_price, created_at"
+      "id, quote_id, shop_id, vehicle_plate, item_type, forfait_code, description, parent_forfait, quantity, unit_price, line_price, created_at"
     )
     .eq("quote_id", quoteId)
     .order("created_at", { ascending: true });
@@ -73,7 +73,12 @@ export default async function StampaPreventivoPage({
   const labelMap: Record<string, string> = {};
   const byType = (t: string) =>
     Array.from(
-      new Set(lines.filter((l) => l.item_type === t).map((l) => l.forfait_code))
+      new Set(
+        lines
+          .filter((l) => l.item_type === t)
+          .map((l) => l.forfait_code)
+          .filter((c): c is string => Boolean(c))
+      )
     );
 
   const forfaitCodes = byType("forfait");
@@ -105,7 +110,9 @@ export default async function StampaPreventivoPage({
   }
 
   const labelOf = (l: QuoteRow) =>
-    labelMap[`${l.item_type}:${l.forfait_code}`] ?? "";
+    l.item_type === "libero"
+      ? l.description ?? ""
+      : labelMap[`${l.item_type}:${l.forfait_code}`] ?? "";
 
   const topLevel = lines.filter((l) => !l.parent_forfait);
   const childrenOf = (code: string) =>
@@ -123,7 +130,7 @@ export default async function StampaPreventivoPage({
       <tr className={nested ? "text-muted" : "text-ink"}>
         <td className="border-b border-line py-1.5 pr-2 align-top font-mono text-[11px]">
           {nested ? "↳ " : ""}
-          {line.forfait_code}
+          {line.forfait_code ?? ""}
         </td>
         <td className="border-b border-line py-1.5 pr-2 align-top">
           {labelOf(line) || "—"}
@@ -207,14 +214,10 @@ export default async function StampaPreventivoPage({
         </thead>
         <tbody>
           {topLevel.flatMap((line) => [
-            <Row key={`t-${line.forfait_code}`} line={line} nested={false} />,
-            ...(line.item_type === "forfait"
+            <Row key={`t-${line.id}`} line={line} nested={false} />,
+            ...(line.item_type === "forfait" && line.forfait_code
               ? childrenOf(line.forfait_code).map((child) => (
-                  <Row
-                    key={`c-${line.forfait_code}-${child.forfait_code}`}
-                    line={child}
-                    nested
-                  />
+                  <Row key={`c-${child.id}`} line={child} nested />
                 ))
               : []),
           ])}

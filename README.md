@@ -93,7 +93,9 @@ articoli di tre tipi (colonna `item_type`):
 
 - **forfait** — listino `util_forfait_fixed` (`price`);
 - **pneumatico** — listino `util_prix_sale_tires` (`prix_vente`, testo);
-- **ricambio** — listino `util_prix_sale_parts` (`pv`, double precision).
+- **ricambio** — listino `util_prix_sale_parts` (`pv`, double precision);
+- **libero** — riga a testo libero: descrizione (`description`) e prezzo
+  inseriti dall'utente (nessun codice; `forfait_code` nullo).
 
 - La UI (`/dashboard/preventivi`) elenca i preventivi **una riga per
   preventivo** (veicolo, numero, data, totale) con un pulsante **Apri** che

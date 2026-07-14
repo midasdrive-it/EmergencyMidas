@@ -24,7 +24,7 @@ export type ShopDetails = {
   Province: string | null;
 };
 
-export type ItemType = "forfait" | "ricambio" | "pneumatico";
+export type ItemType = "forfait" | "ricambio" | "pneumatico" | "libero";
 
 export type ShopHeader = {
   User_ID: string;
@@ -57,11 +57,13 @@ export type Part = {
 };
 
 export type QuoteRow = {
+  id: string;
   quote_id: string;
   shop_id: string;
   vehicle_plate: string;
   item_type: ItemType;
-  forfait_code: string;
+  forfait_code: string | null;
+  description: string | null;
   parent_forfait: string | null;
   quantity: number;
   unit_price: number;
